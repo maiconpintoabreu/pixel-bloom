@@ -80,11 +80,11 @@ jobs:
       - name: Generate Artifacts
         run: |
           cp README.md ${{ env.WEB_BUILD_DIR }}
-          cp LICENSE ${{ env.WEB_BUILD_DIR }}
+          # cp LICENSE ${{ env.WEB_BUILD_DIR }}
           cp README.md ${{ env.LINUX_BUILD_DIR }}
-          cp LICENSE ${{ env.LINUX_BUILD_DIR }}
+          # cp LICENSE ${{ env.LINUX_BUILD_DIR }}
           cp README.md ${{ env.WINDOWS_BUILD_DIR }}
-          cp LICENSE ${{ env.WINDOWS_BUILD_DIR }}
+          # cp LICENSE ${{ env.WINDOWS_BUILD_DIR }}
 
       - name: Upload Web Artifacts
         uses: actions/upload-artifact@v4
