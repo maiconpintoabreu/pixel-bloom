@@ -1,33 +1,35 @@
-# TODO: Use this sample to right the GDD
-
-# Game Design Document: Aether Drift
+# Game Design Document: Pixel Bloom
 
 ## Game Concept Overview
-Game Title: Aether Drift
-Genre: Casual Arcade, Endless Runner (Top-Down)
-Platform(s): Mobile (iOS, Android), Web (HTML5)
+Game Title: Pixel Bloom
+Genre: Mini Game
+Platform(s): Web (HTML5), Windows, Linux
 Target Audience: Casual gamers, ages 8+, looking for a relaxing yet engaging experience.
 
-"Aether Drift" is a minimalist, top-down endless runner where players guide a small, ethereal ship through an ever-changing cosmic environment. The core objective is to survive as long as possible by avoiding obstacles and collecting "Aether Shards" to unlock cosmetic upgrades and new ship designs. The game emphasizes fluid movement, atmospheric visuals, and a calming ambient soundtrack, providing a meditative yet challenging experience.
+"Pixel Bloom" is a minimalist, endless tower defence like. The core objective is to keep the flower blooming as long as possible, protecting it from the excess of sun, rain and wind in a low pace way.
 
 ## Core Gameplay Loop
-Start Game: Player taps to begin a new run.
+Start Game: Player taps/clicks on Start Game Buttom or Continue Game Buttom.
 
-Drift & Avoid: The player's ship automatically moves forward. Players control horizontal movement (left/right) by tapping and holding on either side of the screen or by using tilt controls (optional).
+Sun: When the sun is up... TODO
 
-Obstacles: Various cosmic debris (asteroids, energy fields, derelict structures) drift towards the player. Collision with an obstacle ends the run.
+Clouds/Rain: When the clouds are up and raining... TODO
 
-Collect Aether Shards: Small, glowing "Aether Shards" are scattered throughout the environment. Collecting them adds to the player's score and currency.
+Wind: When it is too windy... TODO
 
-Power-ups (Minimal): Rare, temporary power-ups might appear, such as a brief shield or a magnetic pull for shards.
+Health: The flower will have a health counter that will be displayed in the GUI mostly like in the top right corner. TODO
 
-Dynamic Environment: The background and obstacle patterns subtly shift and evolve over time, increasing challenge and visual variety.
-
-End Run: Upon collision, the game displays the score, collected shards, and offers options to restart or visit the shop.
-
-Shop & Progression: Players use collected Aether Shards to unlock new ship skins, trail effects, and possibly different background themes.
+WaterLevel: The flower will have a water level counter that will be displayed in the GUI mostly like in the top right corner under Health. TODO
 
 ## Art Style & Theme
 Visuals:
 
-Minimalist & Atmospheric: Clean lines, simple geometric shapes for obstacles and ships.
+Minimalist: The minigame will be made using Raylib Monocromatic schema TODO (it may change).
+```
+#define LIGHTGRAY  (Color){ 200, 200, 200, 255 }   // Light Gray
+#define GRAY       (Color){ 130, 130, 130, 255 }   // Gray
+#define DARKGRAY   (Color){ 80, 80, 80, 255 }      // Dark Gray
+#define WHITE      (Color){ 255, 255, 255, 255 }   // White
+#define BLACK      (Color){ 0, 0, 0, 255 }         // Black
+#define RAYWHITE   (Color){ 245, 245, 245, 255 }   // Ray White
+```
