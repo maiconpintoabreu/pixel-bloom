@@ -5,6 +5,7 @@ const Flower = struct {
     waterDrainSpeed: f32 = 0.2,
     maxWaterLevel: f32 = 200,
     waterLevel: f32 = 120,
+    health: f32 = 100,
     fn update(self: *Flower, delta: f32) void {
         if (self.waterLevel != 0.0) {
             self.waterLevel = self.waterLevel - (self.waterDrainSpeed * delta);
@@ -34,7 +35,6 @@ pub fn main() anyerror!void {
 
     // Initialize Flower
     var flower: Flower = .{};
-    const flowerSize: f32 = 10.0;
 
     // Set target FPS for consistent game speed
     rl.setTargetFPS(60);
@@ -52,6 +52,9 @@ pub fn main() anyerror!void {
     const cloudTexture = try rl.Texture.init("resources/cloud-0001.png"); // Texture loading
     defer rl.unloadTexture(cloudTexture); // Texture unloading
 
+    const flowerTexture = try rl.Texture.init("resources/flower-0001.png"); // Texture loading
+    defer rl.unloadTexture(flowerTexture); // Texture unloading
+
     var isSunUp: bool = true;
 
     var climateFrameRec = rl.Rectangle.init(
@@ -59,6 +62,13 @@ pub fn main() anyerror!void {
         0,
         0,
         0,
+    );
+
+    var flowerFrameRec = rl.Rectangle.init(
+        0,
+        0,
+        @as(f32, @floatFromInt(@divFloor(flowerTexture.width, 8))),
+        @as(f32, @floatFromInt(flowerTexture.height)),
     );
     if (currentFrame > 4) currentFrame = 0;
     climateFrameRec = rl.Rectangle.init(
@@ -110,11 +120,6 @@ pub fn main() anyerror!void {
         // Clear the native resolution buffer with a background color from our palette
         rl.clearBackground(rl.Color.dark_gray);
 
-        // --- Draw a Sample Pixel Art Flower ---
-        // Position the flower slightly to the left of the center flower
-        const flowerBaseX = (@as(f32, nativeWidth) / 2.0) - (flowerSize / 2.0);
-        const flowerBaseY = @as(f32, nativeHeight) - flowerSize; // Position it below the flower
-
         if (framesCounter >= (60 / framesSpeed)) {
             framesCounter = 0;
             currentFrame += 1;
@@ -123,25 +128,14 @@ pub fn main() anyerror!void {
             } else {
                 climateFrameRec.x = @as(f32, @floatFromInt(currentFrame)) * @as(f32, @floatFromInt(@divFloor(cloudTexture.width, 8)));
             }
+            flowerFrameRec.x = @as(f32, @floatFromInt(currentFrame)) * @as(f32, @floatFromInt(@divFloor(flowerTexture.width, 8)));
         }
         if (isSunUp) {
             sunTexture.drawRec(climateFrameRec, .{ .x = 0, .y = 0 }, .white); // Draw part of the texture
         } else {
             cloudTexture.drawRec(climateFrameRec, .{ .x = 40, .y = 0 }, .white); // Draw part of the texture
         }
-
-        // Stem (using DARK_GREY for a darker shade)
-        rl.drawPixel(flowerBaseX, flowerBaseY, rl.Color.gray);
-        rl.drawPixel(flowerBaseX, flowerBaseY - 1, rl.Color.gray);
-        rl.drawPixel(flowerBaseX, flowerBaseY - 2, rl.Color.gray);
-
-        // // Petals (using MEDIUM_GREY for the main petals)
-        rl.drawPixel(flowerBaseX - 1, flowerBaseY - 3, rl.Color.gray); // Left petal
-        rl.drawPixel(flowerBaseX + 1, flowerBaseY - 3, rl.Color.gray); // Right petal
-        rl.drawPixel(flowerBaseX, flowerBaseY - 4, rl.Color.gray); // Top petal
-
-        // Center of the flower (using WHITE for a highlight/bloom effect)
-        rl.drawPixel(flowerBaseX, flowerBaseY - 3, rl.Color.ray_white);
+        flowerTexture.drawRec(flowerFrameRec, .{ .x = 60, .y = nativeHeight - 64 }, .white); // Draw part of the texture
 
         rl.endTextureMode(); // Ensure texture mode is ended
         rl.beginDrawing();
@@ -181,7 +175,8 @@ pub fn main() anyerror!void {
         } else if (waterLevelPercentage >= 10) {
             waterLevelColor = rl.Color.ray_white;
         }
-        rl.drawText(rl.textFormat("(o): %03.0f%%", .{waterLevelPercentage}), screenWidth - 100, 12, 20, waterLevelColor);
+        rl.drawText(rl.textFormat("S2: %03.0f%%", .{flower.health}), screenWidth - 100, 10, 20, waterLevelColor);
+        rl.drawText(rl.textFormat("(o): %03.0f%%", .{waterLevelPercentage}), screenWidth - 100, 30, 20, waterLevelColor);
         // Optionally, draw FPS counter for debugging
         rl.drawFPS(10, 10);
     }

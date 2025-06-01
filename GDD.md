@@ -1,3 +1,5 @@
+# TODO: Use this sample to right the GDD
+
 # Game Design Document: Aether Drift
 
 ## Game Concept Overview
