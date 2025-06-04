@@ -53,6 +53,8 @@ pub fn build(b: *std.Build) !void {
         const link_step = try rlz.emcc.linkWithEmscripten(b, &[_]*std.Build.Step.Compile{ exe_lib, raylib_artifact });
         _ = link_step.argv.pop();
         //this lets your program access files like "resources/my-image.png":
+        link_step.addArg("--shell-file");
+        link_step.addArg("src/minshell.html");
         link_step.addArg("--embed-file");
         link_step.addArg("resources/");
 
