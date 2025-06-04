@@ -1,6 +1,35 @@
 const std = @import("std");
 const rlz = @import("raylib_zig");
 
+pub fn addResourcesOption(b: *std.Build, exe: anytype, target: anytype, optimize: anytype) !void {
+    var options = b.addOptions();
+
+    var files = std.ArrayList([]const u8).init(b.allocator);
+    defer files.deinit();
+
+    var buf: [std.fs.max_path_bytes]u8 = undefined;
+    const path = try std.fs.cwd().realpath("resources", buf[0..]);
+
+    var dir = try std.fs.openDirAbsolute(path, .{ .iterate = true });
+    var it = dir.iterate();
+    while (try it.next()) |file| {
+        if (file.kind != .file) {
+            continue;
+        }
+        try files.append(b.dupe(file.name));
+    }
+    options.addOption([]const []const u8, "files", files.items);
+    exe.step.dependOn(&options.step);
+
+    const resources = b.addModule("resources", .{
+        .root_source_file = options.getOutput(),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    exe.root_module.addImport("resources", resources);
+}
+
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
@@ -35,7 +64,20 @@ pub fn build(b: *std.Build) !void {
         return;
     }
 
-    const exe = b.addExecutable(.{ .name = "PixelBloom", .root_source_file = b.path("src/main.zig"), .optimize = optimize, .target = target });
+    const exe = b.addExecutable(.{
+        .name = "PixelBloom",
+        .root_source_file = b.path("src/main.zig"),
+        .optimize = optimize,
+        .target = target,
+    });
+
+    const content_path = "resources/";
+    const install_content_step = b.addInstallDirectory(.{
+        .source_dir = b.path(content_path),
+        .install_dir = .{ .custom = "" },
+        .install_subdir = b.pathJoin(&.{ "bin", "resources/" }),
+    });
+    exe.step.dependOn(&install_content_step.step);
 
     exe.linkLibrary(raylib_artifact);
     exe.root_module.addImport("raylib", raylib);

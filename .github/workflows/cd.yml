@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     
     env:
-      # BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }} # Needs to be added through github
+      BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }} # Needs to be added through github
       PROJECT_NAME: pixel-bloom
       WEB_BUILD_DIR: zig-out/htmlout
       LINUX_BUILD_DIR: zig-out/linux
@@ -104,21 +104,21 @@ jobs:
           name: ${{ env.PROJECT_NAME }}-windows.zip
           path: ./${{ env.WINDOWS_BUILD_DIR }}/*
 
-      # - name: Download + Authorize Butler
-      #   run: |
-      #       curl -L -o butler.zip https://broth.itch.ovh/butler/linux-amd64/LATEST/archive/default
-      #       unzip butler.zip
-      #       chmod +x butler
-      #       ./butler -V
+      - name: Download + Authorize Butler
+        run: |
+            curl -L -o butler.zip https://broth.itch.ovh/butler/linux-amd64/LATEST/archive/default
+            unzip butler.zip
+            chmod +x butler
+            ./butler -V
 
-      # - name: Login To Butler
-      #   run: ./butler login
+      - name: Login To Butler
+        run: ./butler login
 
-      # - name: Push Web to Itch
-      #   run: ./butler push ${{ env.WEB_BUILD_DIR }} maiconspas/pixel-bloom:web
+      - name: Push Web to Itch
+        run: ./butler push ${{ env.WEB_BUILD_DIR }} maiconspas/pixel-bloom:web
 
-      # - name: Push Linux to Itch
-      #   run: ./butler push ${{ env.LINUX_BUILD_DIR }} maiconspas/pixel-bloom:linux
+      - name: Push Linux to Itch
+        run: ./butler push ${{ env.LINUX_BUILD_DIR }} maiconspas/pixel-bloom:linux
 
-      # - name: Push Windows to Itch
-      #   run: ./butler push ${{ env.WINDOWS_BUILD_DIR }} maiconspas/pixel-bloom:windows
+      - name: Push Windows to Itch
+        run: ./butler push ${{ env.WINDOWS_BUILD_DIR }} maiconspas/pixel-bloom:windows
