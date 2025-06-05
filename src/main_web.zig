@@ -17,15 +17,14 @@ export fn emsc_set_window_size(width: c_int, height: c_int) callconv(.C) void {
 }
 
 fn safeMain() !c_int {
-    gameLogic.startGame() catch {
-        // rl.traceLog(rl.TraceLogLevel.err, "{?}", .{err});
-        return 1;
-    };
-    defer gameLogic.closeGame();
-    defer rl.closeWindow();
+    if (gameLogic.startGame()) {
+        defer rl.closeWindow();
+        defer gameLogic.closeGame();
 
-    c.emscripten_set_main_loop(updateFrame, 0, true);
-    return 0;
+        c.emscripten_set_main_loop(updateFrame, 0, true);
+        return 0;
+    }
+    return 1;
 }
 
 export fn updateFrame() callconv(.C) void {

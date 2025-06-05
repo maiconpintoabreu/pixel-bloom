@@ -20,9 +20,9 @@ const Animator = struct {
         if (self.frameTimer >= self.frameSpeed) {
             self.frameTimer -= self.frameSpeed;
             self.currentFrame += 1;
-            if (self.currentFrame > self.frames) self.currentFrame = 0;
+            if (self.currentFrame >= self.frames) self.currentFrame = 0;
             if (self.random) {
-                const frame = rand.intRangeAtMost(i8, 0, self.frames);
+                const frame = rand.intRangeAtMost(i8, 0, self.frames - 1);
                 self.frameRec.x = @as(f32, @floatFromInt(frame)) * @as(f32, @floatFromInt(@divFloor(self.texture.width, self.frames)));
             } else {
                 self.frameRec.x = @as(f32, @floatFromInt(self.currentFrame)) * @as(f32, @floatFromInt(@divFloor(self.texture.width, self.frames)));
@@ -101,7 +101,7 @@ const WaterParticles = struct {
 };
 
 const Game = struct {
-    target: rl.RenderTexture = std.mem.zeroes(rl.RenderTexture),
+    target: rl.RenderTexture2D = std.mem.zeroes(rl.RenderTexture2D),
     width: i32 = 0,
     height: i32 = 0,
     virtualRatio: f32 = 0,
@@ -110,6 +110,7 @@ const Game = struct {
     flower: Flower = .{},
     sun: Sun = .{},
     cloud: Cloud = .{},
+    sourceRec: rl.Rectangle = std.mem.zeroes(rl.Rectangle),
     windArray: [MAX_WIND_PARTICLES]WindParticles = std.mem.zeroes([MAX_WIND_PARTICLES]WindParticles),
     waterArray: [MAX_WATER_PARTICLES]WaterParticles = std.mem.zeroes([MAX_WATER_PARTICLES]WaterParticles),
     windArrayAmount: usize = 0,
@@ -125,7 +126,7 @@ const MAX_WATER_PARTICLES = 200;
 const nativeWidth = 160; // e.g., 160x90 for a 16:9 aspect ratio
 const nativeHeight = 90;
 
-pub fn startGame() anyerror!void {
+pub fn startGame() bool {
     game.width = 800;
     game.height = 450;
     game.isPlaying = true;
@@ -135,22 +136,63 @@ pub fn startGame() anyerror!void {
 
     // Initialize
 
-    game.target = try rl.loadRenderTexture(nativeWidth, nativeHeight);
+    game.target = rl.loadRenderTexture(nativeWidth, nativeHeight) catch |err| switch (err) {
+        rl.RaylibError.LoadRenderTexture => {
+            std.debug.print("ERROR", .{});
+            return false;
+        },
+        else => {
+            return false;
+        },
+    };
 
     game.isSunUp = true;
 
-    game.sun.setTexture(try rl.Texture.init("resources/sun-0001.png"));
-    game.cloud.setTexture(try rl.Texture.init("resources/cloud-0001.png"));
-    game.flower.setTexture(try rl.Texture.init("resources/flower-0001.png"));
+    game.sun.setTexture(rl.Texture.init("resources/sun-0001.png") catch |err| switch (err) {
+        rl.RaylibError.LoadTexture => {
+            std.debug.print("ERROR", .{});
+            return false;
+        },
+        else => {
+            return false;
+        },
+    });
+    game.cloud.setTexture(rl.Texture.init("resources/cloud-0001.png") catch |err| switch (err) {
+        rl.RaylibError.LoadTexture => {
+            std.debug.print("ERROR", .{});
+            return false;
+        },
+        else => {
+            return false;
+        },
+    });
+    game.flower.setTexture(rl.Texture.init("resources/flower-0001.png") catch |err| switch (err) {
+        rl.RaylibError.LoadTexture => {
+            std.debug.print("ERROR", .{});
+            return false;
+        },
+        else => {
+            return false;
+        },
+    });
+
+    game.sourceRec = rl.Rectangle{
+        .x = 0.0,
+        .y = 0.0,
+        .width = @floatFromInt(game.target.texture.width),
+        .height = @floatFromInt(-game.target.texture.height),
+    };
+    return true;
 }
 pub fn closeGame() void {
-    rl.unloadTexture(game.target.texture);
+    std.debug.print("Closing\n", .{});
+    rl.unloadRenderTexture(game.target);
     rl.unloadTexture(game.sun.animator.texture);
     rl.unloadTexture(game.cloud.animator.texture);
     rl.unloadTexture(game.flower.animator.texture);
 }
 fn updateRatio() void {
-    game.virtualRatio = @as(f32, @floatFromInt(game.width)) / @as(f32, @floatFromInt(game.height));
+    game.virtualRatio = @as(f32, @floatFromInt(game.height)) / @as(f32, @floatFromInt(game.height));
 }
 pub threadlocal var game: Game = .{};
 pub fn updateFrame() bool {
@@ -202,7 +244,6 @@ pub fn updateFrame() bool {
             if (value.position.x > nativeWidth) {
                 game.windArray[i] = game.windArray[game.windArrayAmount];
                 game.windArrayAmount -= 1;
-                std.debug.print("index: {d}: amount: {d}\n", .{ i, game.windArrayAmount });
             }
             rl.drawPixelV(value.position, rl.Color.ray_white);
         }
@@ -226,28 +267,19 @@ pub fn updateFrame() bool {
             if (value.position.y > nativeHeight) {
                 game.waterArray[i] = game.waterArray[game.waterArrayAmount];
                 game.waterArrayAmount -= 1;
-                std.debug.print("index: {d}: amount: {d}\n", .{ i, game.waterArrayAmount });
             }
             rl.drawPixelV(value.position, rl.Color.ray_white);
         }
         game.cloud.animator.texture.drawRec(game.cloud.animator.frameRec, .{ .x = 40, .y = 0 }, .white); // Draw part of the texture
     }
     game.flower.animator.texture.drawRec(game.flower.animator.frameRec, .{ .x = 60, .y = nativeHeight - 64 }, .white); // Draw part of the texture
+    std.debug.print("Frame: {d}: amount: {d}\n", .{ game.flower.animator.currentFrame, game.flower.animator.frames });
 
     rl.endTextureMode(); // Ensure texture mode is ended
 
     rl.beginDrawing();
-    defer rl.endDrawing(); // Ensure drawing is ended
 
-    rl.clearBackground(rl.Color.black);
-
-    // TODO: move it out of the loop when possible
-    const sourceRec = rl.Rectangle{
-        .x = 0.0,
-        .y = 0.0,
-        .width = @floatFromInt(game.target.texture.width),
-        .height = @floatFromInt(-game.target.texture.height),
-    };
+    rl.clearBackground(rl.Color.white);
 
     // Define the destination rectangle on the screen (the entire screen)
     const destRec = rl.Rectangle{
@@ -259,7 +291,7 @@ pub fn updateFrame() bool {
 
     // Draw the render texture to the screen, scaled up, with nearest-neighbor filtering
     rl.drawTexturePro(game.target.texture, // The texture to draw
-        sourceRec, // Part of the texture to draw (entire texture)
+        game.sourceRec, // Part of the texture to draw (entire texture)
         destRec, // Where on the screen to draw it
         rl.Vector2{ .x = 0.0, .y = 0.0 }, // Origin for rotation (top-left)
         0.0, // Rotation angle
@@ -279,6 +311,7 @@ pub fn updateFrame() bool {
     rl.drawText(rl.textFormat("(o): %03.0f%%", .{waterLevelPercentage}), game.width - 100, 30, 20, waterLevelColor);
     // Optionally, draw FPS counter for debugging
     rl.drawFPS(10, 10);
+    rl.endDrawing(); // Ensure drawing is ended
 
     if (rl.isKeyDown(rl.KeyboardKey.escape) or rl.windowShouldClose()) {
         game.isPlaying = false;

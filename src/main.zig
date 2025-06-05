@@ -7,9 +7,9 @@ pub fn main() anyerror!void {
 
     rl.setTargetFPS(60);
     rl.setConfigFlags(rl.ConfigFlags{ .window_resizable = true });
-
-    try gameLogic.startGame();
     defer gameLogic.closeGame();
 
-    while (gameLogic.updateFrame()) {}
+    if (gameLogic.startGame()) {
+        while (gameLogic.updateFrame()) {}
+    }
 }
