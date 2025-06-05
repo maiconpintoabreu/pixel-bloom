@@ -125,7 +125,7 @@ pub fn main() anyerror!void {
     var cloud: Cloud = .{};
 
     // Set target FPS for consistent game speed
-    // rl.setTargetFPS(60);
+    rl.setTargetFPS(60);
 
     const target = try rl.loadRenderTexture(nativeWidth, nativeHeight);
     defer rl.unloadRenderTexture(target); // Ensure the render texture is unloaded
