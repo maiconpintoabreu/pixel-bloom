@@ -131,8 +131,6 @@ pub fn startGame() anyerror!void {
     game.isPlaying = true;
     updateRatio();
 
-    rl.setConfigFlags(rl.ConfigFlags{ .window_resizable = true });
-
     rl.initWindow(game.width, game.height, "Pixel Bloom");
 
     // Initialize
