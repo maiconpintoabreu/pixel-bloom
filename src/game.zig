@@ -18,7 +18,7 @@ const Animator = struct {
     fn animate(self: *Animator, delta: f32) void {
         self.frameTimer += delta;
         if (self.frameTimer >= self.frameSpeed) {
-            self.frameTimer -= self.frameSpeed;
+            self.frameTimer = 0;
             self.currentFrame += 1;
             if (self.currentFrame >= self.frames) self.currentFrame = 0;
             if (self.random) {
