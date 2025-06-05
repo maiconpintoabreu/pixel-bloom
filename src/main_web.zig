@@ -7,7 +7,7 @@ const c = @cImport({
 
 export fn main() callconv(.C) c_int {
     return safeMain() catch |err| {
-        rl.traceLog(rl.TraceLogLevel.err, "ERROR: {?}", .{err});
+        rl.traceLog(rl.TraceLogLevel.err, "ERROR: {s}", .{err});
         return 1;
     };
 }
@@ -17,7 +17,10 @@ export fn emsc_set_window_size(width: c_int, height: c_int) callconv(.C) void {
 }
 
 fn safeMain() !c_int {
-    try gameLogic.startGame();
+    gameLogic.startGame() catch {
+        // rl.traceLog(rl.TraceLogLevel.err, "{?}", .{err});
+        return 1;
+    };
     defer gameLogic.closeGame();
     defer rl.closeWindow();
 
