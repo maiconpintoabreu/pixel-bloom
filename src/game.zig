@@ -38,10 +38,12 @@ const Flower = struct {
     waterLevel: f32 = 120,
     health: f32 = 100,
     currentFrame: u8 = 0,
+    isAlive: bool = true,
     fn setTexture(self: *Flower, texture: rl.Texture2D) void {
         self.animator.setTexture(texture);
     }
     fn update(self: *Flower, delta: f32) void {
+        if (!self.isAlive) return;
         if (self.waterLevel != 0.0) {
             self.waterLevel = self.waterLevel - (self.waterDrainSpeed * delta);
         }
@@ -51,10 +53,30 @@ const Flower = struct {
         self.animate(delta);
     }
     fn animate(self: *Flower, delta: f32) void {
+        if (!self.isAlive) return;
         self.animator.animate(delta);
     }
     fn getWaterLevelPercentage(self: *Flower) f32 {
+        if (!self.isAlive) return 0;
         return self.waterLevel / self.maxWaterLevel;
+    }
+    fn takeDamage(self: *Flower, damage: f32) void {
+        if (!self.isAlive) return;
+        self.health -= damage;
+        if (self.health <= 0) {
+            self.isAlive = false;
+            self.health = 0;
+        }
+    }
+    fn takeWater(self: *Flower, water: f32) void {
+        if (!self.isAlive) return;
+        self.waterLevel += water;
+        if (self.waterLevel > self.maxWaterLevel) {
+            takeDamage(self, 10);
+            self.waterLevel = self.maxWaterLevel;
+        } else {
+            self.health += 1;
+        }
     }
 };
 
@@ -92,12 +114,12 @@ const Cloud = struct {
 
 const WindParticles = struct {
     power: f32 = 0,
-    position: rl.Vector2 = .{ .x = 0, .y = 0 },
+    position: rl.Vector2 = std.mem.zeroes(rl.Vector2),
 };
 
 const WaterParticles = struct {
     amount: f32 = 0,
-    position: rl.Vector2 = .{ .x = 0, .y = 0 },
+    position: rl.Vector2 = std.mem.zeroes(rl.Vector2),
 };
 
 const Game = struct {
@@ -110,6 +132,10 @@ const Game = struct {
     flower: Flower = .{},
     sun: Sun = .{},
     cloud: Cloud = .{},
+    startLine: rl.Vector2 = std.mem.zeroes(rl.Vector2),
+    endLine: rl.Vector2 = std.mem.zeroes(rl.Vector2),
+    lineDuration: f32 = 0,
+    currentLine: [2]rl.Vector2 = std.mem.zeroes([2]rl.Vector2),
     sourceRec: rl.Rectangle = std.mem.zeroes(rl.Rectangle),
     windArray: [MAX_WIND_PARTICLES]WindParticles = std.mem.zeroes([MAX_WIND_PARTICLES]WindParticles),
     waterArray: [MAX_WATER_PARTICLES]WaterParticles = std.mem.zeroes([MAX_WATER_PARTICLES]WaterParticles),
@@ -194,9 +220,10 @@ pub fn closeGame() void {
     rl.unloadTexture(game.flower.animator.texture);
 }
 fn updateRatio() void {
-    game.virtualRatio = @as(f32, @floatFromInt(game.height)) / @as(f32, @floatFromInt(game.height));
+    game.virtualRatio = @as(f32, @floatFromInt(game.height)) / @as(f32, @floatFromInt(nativeHeight));
+    rl.setMouseScale(1 / game.virtualRatio, 1 / game.virtualRatio);
 }
-pub threadlocal var game: Game = .{};
+pub var game: Game = .{};
 pub fn updateFrame() bool {
     if (rl.isKeyPressed(rl.KeyboardKey.space)) {
         game.isSunUp = !game.isSunUp;
@@ -207,6 +234,15 @@ pub fn updateFrame() bool {
         game.waterArrayAmount = 0;
         game.windParticleCD = 1;
         game.waterParticleCD = 1;
+    }
+    rl.setMouseScale(1 / game.virtualRatio, 1 / game.virtualRatio);
+    if (rl.isMouseButtonPressed(rl.MouseButton.left)) {
+        game.startLine = rl.getMousePosition();
+        game.endLine = std.mem.zeroes(rl.Vector2);
+        game.lineDuration = 40;
+    }
+    if (rl.isMouseButtonReleased(rl.MouseButton.left)) {
+        game.endLine = rl.getMousePosition();
     }
 
     if (rl.isWindowResized()) {
@@ -222,6 +258,17 @@ pub fn updateFrame() bool {
     }
     game.flower.update(delta);
 
+    if (game.lineDuration > 0) {
+        if (game.endLine.x == 0 and game.endLine.y == 0) {
+            game.currentLine[0] = game.startLine;
+            game.currentLine[1] = rl.getMousePosition();
+        } else {
+            game.lineDuration -= delta;
+            game.currentLine[0] = game.startLine;
+            game.currentLine[1] = game.endLine;
+        }
+    }
+
     rl.beginTextureMode(game.target);
 
     // Clear the native resolution buffer with a background color from our palette
@@ -229,28 +276,49 @@ pub fn updateFrame() bool {
 
     if (game.isSunUp) {
         game.windParticleCD -= delta;
+        var i: usize = 0;
+        while (i < game.windArrayAmount) {
+            var value = &game.windArray[i];
+            value.position.x += value.power * delta;
+            if (value.position.x > nativeWidth - 85) {
+                game.flower.takeDamage(value.power);
+                game.windArray[i] = game.windArray[game.windArrayAmount - 1];
+                game.windArrayAmount -= 1;
+            } else if (game.lineDuration > 0 and rl.checkCollisionPointLine(value.position, game.currentLine[0], game.currentLine[1], 1)) {
+                game.windArray[i] = game.windArray[game.windArrayAmount - 1];
+                game.windArrayAmount -= 1;
+            } else {
+                rl.drawPixelV(value.position, rl.Color.ray_white);
+                i += 1;
+            }
+        }
         if (game.windParticleCD < 0) {
             game.windParticleCD = 1;
             if (game.windArrayAmount < MAX_WIND_PARTICLES) {
-                game.windArray[game.windArrayAmount].power = rand.float(f32) * 20;
+                game.windArray[game.windArrayAmount].power = 10 + rand.float(f32) * 10;
                 game.windArray[game.windArrayAmount].position.y = nativeHeight - 30 + rand.float(f32) * 20;
-                game.windArray[game.windArrayAmount].position.x = 0;
+                game.windArray[game.windArrayAmount].position.x = 1;
                 game.windArrayAmount += 1;
             }
         }
-        var i: usize = 0;
-        while (i < game.windArrayAmount) {
-            i += 1;
-            var value = &game.windArray[i];
-            value.position.x += value.power * delta;
-            if (value.position.x > nativeWidth) {
-                game.windArray[i] = game.windArray[game.windArrayAmount];
-                game.windArrayAmount -= 1;
-            }
-            rl.drawPixelV(value.position, rl.Color.ray_white);
-        }
         game.sun.animator.texture.drawRec(game.sun.animator.frameRec, .{ .x = 0, .y = 0 }, .white); // Draw part of the texture
     } else {
+        var i: usize = 0;
+        while (i < game.waterArrayAmount) {
+            var value = &game.waterArray[i];
+            value.position.y += value.amount * delta;
+            if (value.position.x > nativeWidth - 85) {
+                game.flower.takeWater(value.amount);
+                game.waterArray[i] = game.waterArray[game.waterArrayAmount - 1];
+                game.waterArrayAmount -= 1;
+            } else if (game.lineDuration > 0 and rl.checkCollisionPointLine(value.position, game.currentLine[0], game.currentLine[1], 1)) {
+                game.waterArray[i] = game.waterArray[game.waterArrayAmount - 1];
+                game.waterArrayAmount -= 1;
+            } else {
+                rl.drawPixelV(value.position, rl.Color.ray_white);
+                i += 1;
+            }
+        }
         game.waterParticleCD -= delta;
         if (game.waterParticleCD < 0) {
             game.waterParticleCD = 1;
@@ -261,20 +329,14 @@ pub fn updateFrame() bool {
             game.waterArray[game.waterArrayAmount - 1].position.y = 0;
             game.waterArray[game.waterArrayAmount - 1].position.x = 60 + rand.float(f32) * 20;
         }
-        var i: usize = 0;
-        while (i < game.waterArrayAmount) {
-            i += 1;
-            var value = &game.waterArray[i];
-            value.position.y += value.amount * delta;
-            if (value.position.y > nativeHeight) {
-                game.waterArray[i] = game.waterArray[game.waterArrayAmount];
-                game.waterArrayAmount -= 1;
-            }
-            rl.drawPixelV(value.position, rl.Color.ray_white);
-        }
         game.cloud.animator.texture.drawRec(game.cloud.animator.frameRec, .{ .x = 40, .y = 0 }, .white); // Draw part of the texture
     }
     game.flower.animator.texture.drawRec(game.flower.animator.frameRec, .{ .x = 60, .y = nativeHeight - 64 }, .white); // Draw part of the texture
+
+    if (game.lineDuration > 0) {
+        game.lineDuration -= delta;
+        rl.drawLineEx(game.currentLine[0], game.currentLine[1], 5, rl.Color.light_gray);
+    }
 
     rl.endTextureMode(); // Ensure texture mode is ended
 
