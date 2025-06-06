@@ -233,7 +233,7 @@ pub fn updateFrame() bool {
             game.windParticleCD = 1;
             if (game.windArrayAmount < MAX_WIND_PARTICLES) {
                 game.windArray[game.windArrayAmount].power = rand.float(f32) * 20;
-                game.windArray[game.windArrayAmount].position.y = nativeHeight - 50 + rand.float(f32) * 20;
+                game.windArray[game.windArrayAmount].position.y = nativeHeight - 30 + rand.float(f32) * 20;
                 game.windArray[game.windArrayAmount].position.x = 0;
                 game.windArrayAmount += 1;
             }
@@ -275,7 +275,6 @@ pub fn updateFrame() bool {
         game.cloud.animator.texture.drawRec(game.cloud.animator.frameRec, .{ .x = 40, .y = 0 }, .white); // Draw part of the texture
     }
     game.flower.animator.texture.drawRec(game.flower.animator.frameRec, .{ .x = 60, .y = nativeHeight - 64 }, .white); // Draw part of the texture
-    std.debug.print("Frame: {d}: amount: {d}\n", .{ game.flower.animator.currentFrame, game.flower.animator.frames });
 
     rl.endTextureMode(); // Ensure texture mode is ended
 
