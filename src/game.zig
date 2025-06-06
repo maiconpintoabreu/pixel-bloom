@@ -135,43 +135,45 @@ pub fn startGame() bool {
     rl.initWindow(game.width, game.height, "Pixel Bloom");
 
     // Initialize
+    game.isSunUp = true;
 
     game.target = rl.loadRenderTexture(nativeWidth, nativeHeight) catch |err| switch (err) {
         rl.RaylibError.LoadRenderTexture => {
-            std.debug.print("ERROR", .{});
+            std.debug.print("LoadRenderTexture ERROR", .{});
             return false;
         },
         else => {
+            std.debug.print("ERROR", .{});
             return false;
         },
     };
-
-    game.isSunUp = true;
-
     game.sun.setTexture(rl.Texture.init("resources/sun-0001.png") catch |err| switch (err) {
         rl.RaylibError.LoadTexture => {
-            std.debug.print("ERROR", .{});
+            std.debug.print("LoadTexture ERROR", .{});
             return false;
         },
         else => {
+            std.debug.print("ERROR", .{});
             return false;
         },
     });
     game.cloud.setTexture(rl.Texture.init("resources/cloud-0001.png") catch |err| switch (err) {
         rl.RaylibError.LoadTexture => {
-            std.debug.print("ERROR", .{});
+            std.debug.print("LoadTexture ERROR", .{});
             return false;
         },
         else => {
+            std.debug.print("ERROR", .{});
             return false;
         },
     });
     game.flower.setTexture(rl.Texture.init("resources/flower-0001.png") catch |err| switch (err) {
         rl.RaylibError.LoadTexture => {
-            std.debug.print("ERROR", .{});
+            std.debug.print("LoadTexture ERROR", .{});
             return false;
         },
         else => {
+            std.debug.print("ERROR", .{});
             return false;
         },
     });
