@@ -145,6 +145,7 @@ const Game = struct {
     waterParticleCD: f32 = 1,
     isPlaying: bool = false,
     isSunUp: bool = false,
+    isDraging: bool = false,
 };
 const MAX_WIND_PARTICLES = 200;
 const MAX_WATER_PARTICLES = 200;
@@ -235,15 +236,6 @@ pub fn updateFrame() bool {
         game.windParticleCD = 1;
         game.waterParticleCD = 1;
     }
-    rl.setMouseScale(1 / game.virtualRatio, 1 / game.virtualRatio);
-    if (rl.isMouseButtonPressed(rl.MouseButton.left)) {
-        game.startLine = rl.getMousePosition();
-        game.endLine = std.mem.zeroes(rl.Vector2);
-        game.lineDuration = 40;
-    }
-    if (rl.isMouseButtonReleased(rl.MouseButton.left)) {
-        game.endLine = rl.getMousePosition();
-    }
 
     if (rl.isWindowResized()) {
         game.width = rl.getScreenWidth();
@@ -257,6 +249,34 @@ pub fn updateFrame() bool {
         game.cloud.update(delta);
     }
     game.flower.update(delta);
+    rl.beginTextureMode(game.target);
+
+    const points = rl.getTouchPointCount();
+    if (points > 1 or game.isDraging) {
+        if (!game.isDraging) {
+            game.isDraging = true;
+            game.startLine = rl.Vector2.scale(rl.getMousePosition(), 1 / game.virtualRatio);
+            game.endLine = std.mem.zeroes(rl.Vector2);
+            game.lineDuration = 40;
+            rl.traceLog(rl.TraceLogLevel.info, "Start touch %f - %f", .{ game.startLine.x, game.startLine.y });
+        }
+        if (points == 0) {
+            game.endLine = rl.Vector2.scale(rl.getMousePosition(), 1 / game.virtualRatio);
+            rl.traceLog(rl.TraceLogLevel.info, "End touch", .{});
+            game.isDraging = false;
+        }
+    } else {
+        if (rl.isMouseButtonPressed(rl.MouseButton.left)) {
+            game.startLine = rl.getMousePosition();
+            game.endLine = std.mem.zeroes(rl.Vector2);
+            game.lineDuration = 40;
+            rl.traceLog(rl.TraceLogLevel.info, "Start %03.0f - %03.0f", .{ game.startLine.x, game.startLine.y });
+        }
+        if (rl.isMouseButtonReleased(rl.MouseButton.left)) {
+            game.endLine = rl.getMousePosition();
+            rl.traceLog(rl.TraceLogLevel.info, "End", .{});
+        }
+    }
 
     if (game.lineDuration > 0) {
         if (game.endLine.x == 0 and game.endLine.y == 0) {
@@ -268,8 +288,6 @@ pub fn updateFrame() bool {
             game.currentLine[1] = game.endLine;
         }
     }
-
-    rl.beginTextureMode(game.target);
 
     // Clear the native resolution buffer with a background color from our palette
     rl.clearBackground(rl.Color.dark_gray);
@@ -369,13 +387,21 @@ pub fn updateFrame() bool {
     } else if (waterLevelPercentage >= 10) {
         waterLevelColor = rl.Color.ray_white;
     }
-    rl.drawText(rl.textFormat("->: %03u", .{game.windArrayAmount}), game.width - 100, 50, 20, waterLevelColor);
     rl.drawText(rl.textFormat("S2: %03.0f%%", .{game.flower.health}), game.width - 100, 10, 20, waterLevelColor);
     rl.drawText(rl.textFormat("(o): %03.0f%%", .{waterLevelPercentage}), game.width - 100, 30, 20, waterLevelColor);
+    rl.drawText(rl.textFormat("->: %03u", .{game.windArrayAmount}), game.width - 100, 50, 20, waterLevelColor);
+    if (points != 0) {
+        var i: i32 = 0;
+        while (i < 7) {
+            rl.drawText(rl.textFormat("%i TouchX->: %03.0f TouchY->: %03.0f", .{ i, rl.getTouchPosition(i).x, rl.getTouchPosition(i).y }), 10, 50 + (i * 20), 20, .red);
+            i += 1;
+        }
+        const mousePosition = rl.Vector2.scale(rl.getMousePosition(), 1 / game.virtualRatio);
+        rl.drawText(rl.textFormat("%i MouseX->: %03.0f MouseY->: %03.0f", .{ i, mousePosition.x, mousePosition.y }), 10, 50 + (i * 20), 20, .red);
+    }
     // Optionally, draw FPS counter for debugging
     rl.drawFPS(10, 10);
     rl.endDrawing(); // Ensure drawing is ended
-
     if (rl.isKeyDown(rl.KeyboardKey.escape) or rl.windowShouldClose()) {
         game.isPlaying = false;
     }

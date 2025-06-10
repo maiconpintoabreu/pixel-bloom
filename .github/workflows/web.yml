@@ -1,0 +1,90 @@
+# Web Build and Publish on Itch.io
+# Only run when pushed to main
+
+name: Web
+on:
+  push:
+    branches: main
+    paths:
+      - 'src/**' # Deploy web every change in src folder
+      - '.github/workflows/web.yml'
+    
+permissions:
+  contents: read
+
+jobs:
+  build-web:
+    permissions:
+      contents: write       # for actions/upload-release-asset to upload release asset
+    runs-on: ubuntu-20.04
+    
+    env:
+      BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }} # Needs to be added through github
+      PROJECT_NAME: pixel-bloom-game
+      BUILD_DIR: build_web_wasm
+      PROJECT_RELEASE_PATH: ${{ github.event.repository.name }}_dev_web_wasm
+      PROJECT_CUSTOM_FLAGS: ""
+      PROJECT_RESOURCES_PATH: resources
+
+    steps:
+      - name: Checkout Project
+        uses: actions/checkout@v4.2.1
+
+      - name: Cache build/_deps
+        uses: actions/cache@v3
+        with:
+          path: ${{github.workspace}}/${{env.BUILD_DIR}}/_deps
+          key: ${{env.BUILD_DIR}}-deps
+          restore-keys: ${{env.BUILD_DIR}}-deps
+
+      - name: Setup Environment
+        run: | 
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends python3 libglfw3 libglfw3-dev libx11-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev libxext-dev libxfixes-dev libwayland-dev libxkbcommon-dev cmake
+          mkdir -p ${{ env.PROJECT_RELEASE_PATH }}/${{ env.PROJECT_RESOURCES_PATH }}
+        shell: bash
+  
+      - name: Setup emsdk
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.71
+          actions-cache-folder: 'emsdk-cache'
+
+      # Build emscripten project using a raylibshell html file
+      - name: Configure Project
+        run: |
+          mkdir -p ${{ env.BUILD_DIR }}
+          cd ${{ env.BUILD_DIR }} && emcmake cmake .. -DPLATFORM=Web -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXECUTABLE_SUFFIX=".html" -DPROJECT_RESOURCES_PATH=${{ env.PROJECT_RESOURCES_PATH }}
+          
+      - name: Build Project
+        run: |
+          cd ${{ env.BUILD_DIR }} && emmake make BUILD_MODE=RELEASE PROJECT_CUSTOM_FLAGS=${{ env.PROJECT_CUSTOM_FLAGS }}
+          cp ${{ env.PROJECT_NAME }}/${{env.PROJECT_NAME}}.html ${{ env.PROJECT_NAME }}/index.html
+      
+      - name: Generate Artifacts
+        run: |
+          # ls ${{ env.BUILD_DIR }}
+          cp -r ${{ env.BUILD_DIR }}/${{ env.PROJECT_NAME }} ${{ env.PROJECT_RELEASE_PATH }}
+          cp README.md ${{ env.PROJECT_RELEASE_PATH }}
+          cp LICENSE ${{ env.PROJECT_RELEASE_PATH }}
+          ls ${{ env.PROJECT_RELEASE_PATH }}
+          7z a ./${{ env.PROJECT_RELEASE_PATH }}.zip ./${{ env.PROJECT_RELEASE_PATH }}
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PROJECT_RELEASE_PATH }}.zip
+          path: ./${{ env.PROJECT_RELEASE_PATH }}.zip
+
+      - name: Download + Authorize Butler
+        run: |
+            curl -L -o butler.zip https://broth.itch.ovh/butler/linux-amd64/LATEST/archive/default
+            unzip butler.zip
+            chmod +x butler
+            ./butler -V
+
+      - name: Login To Butler
+        run: ./butler login
+
+      - name: Push Web to Itch
+        run: ./butler push ${{ env.PROJECT_RELEASE_PATH }} maiconspas/pixel-bloom:web

@@ -31,7 +31,7 @@ pub fn build(b: *std.Build) !void {
             b,
             &[_]*std.Build.Step.Compile{ exe_lib, raylib_artifact },
         );
-        _ = link_step.argv.pop();
+        // _ = link_step.argv.pop();
         //this lets your program access files like "resources/my-image.png":
         link_step.addArg("--shell-file");
         link_step.addArg("src/minshell.html");
@@ -40,7 +40,7 @@ pub fn build(b: *std.Build) !void {
 
         b.getInstallStep().dependOn(&link_step.step);
         const run_step = try rlz.emcc.emscriptenRunStep(b);
-        // run_step.addArg("--no_browser");
+        run_step.addArg("--no_browser");
         run_step.step.dependOn(&link_step.step);
         const run_option = b.step("run", "Run PixelBloom");
         run_option.dependOn(&run_step.step);

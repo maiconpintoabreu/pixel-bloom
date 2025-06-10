@@ -1,3 +1,13 @@
 {
-    "zig.zls.enabled": "on"
+    "files.associations": {
+        "stdlib.h": "c",
+        "raylib.h": "c",
+        "*.m": "c",
+        "bit": "c",
+        "array": "c",
+        "functional": "c",
+        "tuple": "c",
+        "type_traits": "c",
+        "utility": "c"
+    }
 }
