@@ -3,11 +3,7 @@
 
 name: Web
 on:
-  push:
-    branches: main
-    paths:
-      - 'src/**' # Deploy web every change in src folder
-      - '.github/workflows/web.yml'
+  workflow_dispatch: 
     
 permissions:
   contents: read
