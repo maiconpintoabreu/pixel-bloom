@@ -1,0 +1,84 @@
+# Windows Build and Publish on Itch.io
+# Only run when pushed to main
+
+name: Windows
+on:
+  workflow_dispatch: 
+    
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    permissions:
+      contents: write       # for actions/upload-release-asset to upload release asset
+    runs-on: windows-latest
+    
+    
+    env:
+      BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }} # Needs to be added through github
+      PROJECT_NAME: pixel-bloom-game
+      BUILD_DIR: build_linux_x64
+      PROJECT_RELEASE_PATH: ${{ github.event.repository.name }}_dev_linux_x64
+      PROJECT_CUSTOM_FLAGS: ""
+      PROJECT_RESOURCES_PATH: resources
+      BUILD_TYPE: Release
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache build/_deps
+        uses: actions/cache@v3
+        with:
+          path: ${{github.workspace}}/${{env.BUILD_DIR}}/_deps
+          key: ${{env.BUILD_DIR}}-deps
+          restore-keys: ${{env.BUILD_DIR}}-deps
+
+      - name: Create Build Environment
+        # Some projects don't allow in-source building, so create a separate build directory
+        # We'll use this as our working directory for all subsequent commands
+        run: cmake -E make_directory ${{github.workspace}}/${{ env.BUILD_DIR }}
+
+      - name: Configure CMake
+        # Use a bash shell so we can use the same syntax for environment variable
+        # access regardless of the host operating system
+        shell: powershell
+        working-directory: ${{github.workspace}}/${{ env.BUILD_DIR }}
+        # Note the current convention is to use the -S and -B options here to specify source
+        # and build directories, but this is only available with CMake 3.13 and higher.
+        # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
+        run: cmake $env:GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$env:BUILD_TYPE -DPLATFORM=Desktop
+
+      - name: Build
+        working-directory: ${{github.workspace}}/${{ env.BUILD_DIR }}
+        shell: powershell
+        # Execute the build.  You can specify a specific target with "--target <NAME>"
+        run: cmake --build . --config $env:BUILD_TYPE
+      
+      - name: Generate Artifacts
+        run: |
+          # ls ${{ env.BUILD_DIR }}
+          cp -r ${{ env.BUILD_DIR }}/${{ env.PROJECT_NAME }} ${{ env.PROJECT_RELEASE_PATH }}
+          cp README.md ${{ env.PROJECT_RELEASE_PATH }}
+          cp LICENSE ${{ env.PROJECT_RELEASE_PATH }}
+          ls ${{ env.PROJECT_RELEASE_PATH }}
+          7z a ./${{ env.PROJECT_RELEASE_PATH }}.zip ./${{ env.PROJECT_RELEASE_PATH }}
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PROJECT_RELEASE_PATH }}.zip
+          path: ./${{ env.PROJECT_RELEASE_PATH }}.zip
+
+      - name: Download + Authorize Butler
+        run: |
+            curl -L -o butler.zip https://broth.itch.ovh/butler/linux-amd64/LATEST/archive/default
+            unzip butler.zip
+            chmod +x butler
+            ./butler -V
+
+      - name: Login To Butler
+        run: ./butler login
+
+      - name: Push Windows to Itch
+        run: ./butler push ${{ env.PROJECT_RELEASE_PATH }} maiconspas/pixel-bloom:windows
