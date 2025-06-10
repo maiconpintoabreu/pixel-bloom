@@ -96,6 +96,7 @@ typedef struct Game {
     float waterParticleCD;
     bool isSunUp;
     bool isDraging;
+    bool isPaused;
 } Game;
 
 static Game game = {0};
@@ -111,9 +112,11 @@ static RenderTexture2D target = {0};
 static Rectangle sourceRec = {0};
 static Rectangle destRec = {0};
 
+static Music music = {0};
+
  
 int MenuButtom(Rectangle buttom, const char *buttom_text) {
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(GetMousePosition(), buttom))
+    if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(GetMousePosition(), buttom))
     {
         return true;
     }
@@ -203,6 +206,7 @@ void UpdateFrame() {
         PlaceUIButtons();
     }
     // Tick
+    UpdateMusicStream(music);   // Update music buffer with new stream data
     if(game.state == StateInGame){
         if (IsKeyPressed(KEY_SPACE)) {
             game.isSunUp = !game.isSunUp;
@@ -370,7 +374,17 @@ void UpdateFrame() {
                 }
                 DrawText(TextFormat("S2: %03.0f", game.flower.health), game.width - 100, 10, FONT_SIZE, waterLevelColor);
                 DrawText(TextFormat("(o): %03.0f%%", waterLevelPercentage), game.width - 100, 30, FONT_SIZE, waterLevelColor);
-                DrawText(TextFormat("->: %03.0i", game.windArrayAmount), game.width - 100, 50, FONT_SIZE, waterLevelColor);
+                
+                if (MenuButtom((Rectangle){game.width - 100, 50, 90, 20}, "Music"))
+                {
+                    if(game.isPaused){
+                        ResumeMusicStream(music);
+                        game.isPaused = false;
+                    }else{
+                        PauseMusicStream(music);
+                        game.isPaused = true;
+                    }
+                }
 
                 break;
             case StateStartMenu:
@@ -411,8 +425,13 @@ int main(void) {
     // Start Raylib Window
     InitWindow(game.width, game.height, "Pixel Bloom");
 
+    InitAudioDevice();   
+
     target = LoadRenderTexture(NATIVE_WIDTH, NATIVE_HEIGHT);
     LoadTextures();
+    
+    music = LoadMusicStream("resources/musics/ambient.mp3");
+    PlayMusicStream(music);
 
     PlaceUIButtons();
     UpdateRatio();
@@ -433,7 +452,8 @@ int main(void) {
 #endif
     
     UnloadTextures();
-
+    UnloadMusicStream(music);
+    CloseAudioDevice();
     CloseWindow();
 
     return 0;
