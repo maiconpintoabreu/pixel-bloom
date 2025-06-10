@@ -53,8 +53,13 @@ if ("${PLATFORM}" STREQUAL "Web")
     # Tell Emscripten to build an example.html file.
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Os")    
     # Since WASM is used, ALLOW_MEMORY_GROWTH has no extra overheads
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s WASM=1 -s ASYNCIFY -s ALLOW_MEMORY_GROWTH=1 --shell-file ${CMAKE_SOURCE_DIR}/src/minshell.html")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s USE_GLFW=3 -s ASSERTIONS=1 -s WASM=1 -s ASYNCIFY -s GL_ENABLE_GET_PROC_ADDRESS=1 -s ALLOW_MEMORY_GROWTH=1 --shell-file ${CMAKE_SOURCE_DIR}/src/minshell.html")
     set(CMAKE_EXECUTABLE_SUFFIX ".html")
+    #DEPENDS ${PROJECT_NAME}
+    add_custom_command(
+        TARGET ${PROJECT_NAME} PRE_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/resources $<TARGET_FILE_DIR:${PROJECT_NAME}>/../resources
+    )
     #DEPENDS ${PROJECT_NAME}
 else()
     add_custom_command(
@@ -87,15 +92,9 @@ set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY $<TAR
 
 # Web Configurations
 if ("${PLATFORM}" STREQUAL "Web")
-
     # Preload files
-    file(GLOB ASSETS "${CMAKE_SOURCE_DIR}/resources/*") # Gather all files in resources
-    foreach(ASSET ${ASSETS})
-       get_filename_component(ASSET_NAME ${ASSET} NAME)
-       string(REPLACE "${CMAKE_CURRENT_SOURCE_DIR}/" "" ASSET_PATH ${ASSET})
-       message(STATUS "Preloading: ${ASSET_PATH} as ${CMAKE_SOURCE_DIR}/resources/${ASSET_NAME}")
-       set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --preload-file ${ASSET_PATH}@resources/${ASSET_NAME}")
-    endforeach()
+    set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".html")
+    target_link_options(${PROJECT_NAME} PUBLIC -sUSE_GLFW=3 PUBLIC --preload-file resources)
 endif()
 # Checks if OSX and links appropriate frameworks (Only required on MacOS)
 if (APPLE)
