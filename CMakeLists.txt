@@ -85,6 +85,18 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 
 set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY $<TARGET_FILE_DIR:${PROJECT_NAME}>)
 
+# Web Configurations
+if ("${PLATFORM}" STREQUAL "Web")
+
+    # Preload files
+    file(GLOB ASSETS "${CMAKE_SOURCE_DIR}/resources/*") # Gather all files in resources
+    foreach(ASSET ${ASSETS})
+       get_filename_component(ASSET_NAME ${ASSET} NAME)
+       string(REPLACE "${CMAKE_CURRENT_SOURCE_DIR}/" "" ASSET_PATH ${ASSET})
+       message(STATUS "Preloading: ${ASSET_PATH} as ${CMAKE_SOURCE_DIR}/resources/${ASSET_NAME}")
+       set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --preload-file ${ASSET_PATH}@resources/${ASSET_NAME}")
+    endforeach()
+endif()
 # Checks if OSX and links appropriate frameworks (Only required on MacOS)
 if (APPLE)
     target_link_libraries(${PROJECT_NAME} "-framework IOKit")
