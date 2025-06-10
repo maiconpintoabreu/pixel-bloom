@@ -6,11 +6,11 @@ all: configure build test
 
 # Check if the build directory exists, if not create it
 configure-windows:
-	/snap/bin/cmake build . -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DPLATFORM=Desktop -DWIN32=true -DCMAKE_CROSSCOMPILING=true -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc
+	@cmake build . -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DPLATFORM=Desktop -DWIN32=true -DCMAKE_CROSSCOMPILING=true -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc
 
 configure:
 	@mkdir -p $(BUILD_DIR)
-	/snap/bin/cmake build . -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
+	@cmake build . -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
 
 configure-web:
 	@mkdir -p $(BUILD_DIR)
