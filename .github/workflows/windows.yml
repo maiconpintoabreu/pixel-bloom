@@ -18,8 +18,8 @@ jobs:
     env:
       BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }} # Needs to be added through github
       PROJECT_NAME: pixel-bloom-game
-      BUILD_DIR: build_linux_x64
-      PROJECT_RELEASE_PATH: ${{ github.event.repository.name }}_dev_linux_x64
+      BUILD_DIR: build_windows_x64
+      PROJECT_RELEASE_PATH: ${{ github.event.repository.name }}_dev_windows_x64
       PROJECT_CUSTOM_FLAGS: ""
       PROJECT_RESOURCES_PATH: resources
       BUILD_TYPE: Release
@@ -58,7 +58,7 @@ jobs:
       - name: Generate Artifacts
         run: |
           # ls ${{ env.BUILD_DIR }}
-          cp -r ${{ env.BUILD_DIR }}/${{ env.PROJECT_NAME }} ${{ env.PROJECT_RELEASE_PATH }}
+          cp -r ${{ env.BUILD_DIR }}/${{ env.PROJECT_NAME }}/${{ env.BUILD_TYPE }} ${{ env.PROJECT_RELEASE_PATH }}
           cp README.md ${{ env.PROJECT_RELEASE_PATH }}
           cp LICENSE ${{ env.PROJECT_RELEASE_PATH }}
           ls ${{ env.PROJECT_RELEASE_PATH }}
@@ -72,13 +72,12 @@ jobs:
 
       - name: Download + Authorize Butler
         run: |
-            curl -L -o butler.zip https://broth.itch.ovh/butler/linux-amd64/LATEST/archive/default
-            unzip butler.zip
-            chmod +x butler
-            ./butler -V
+            curl -L -o butler.zip https://broth.itch.zone/butler/windows-amd64/15.24.0/archive/default
+            7z x .\butler.zip
+            .\butler.exe -V
 
       - name: Login To Butler
-        run: ./butler login
+        run: .\butler.exe login
 
       - name: Push Windows to Itch
-        run: ./butler push ${{ env.PROJECT_RELEASE_PATH }} maiconspas/pixel-bloom:windows
+        run: .\butler.exe push ${{ env.PROJECT_RELEASE_PATH }} maiconspas/pixel-bloom:windows
