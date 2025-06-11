@@ -213,7 +213,7 @@ void TakeDamage(float damage, DamageType damageType) {
             game.highestScore = game.score;
         }
         game.state = StateGameOver;
-        game.gameOverType = DehidrationDamage;
+        game.gameOverType = damageType;
     }
 }
 void TakeWater(float water) {
