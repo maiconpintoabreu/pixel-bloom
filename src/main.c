@@ -419,7 +419,7 @@ void UpdateFrame() {
                 
                 break;
             case StateGameOver:
-                DrawText(TextFormat("Highest Score: %03.0f", game.highestScore), restartMenuRec.x, restartMenuRec.y - 20, FONT_SIZE, waterLevelColor);
+                DrawText(TextFormat("Highest Score: %03.0f", game.highestScore), restartMenuRec.x, restartMenuRec.y - 20, FONT_SIZE, WHITE);
                 if (MenuButtom(restartMenuRec, "Restart Game"))
                 {
                     // Initialize game
