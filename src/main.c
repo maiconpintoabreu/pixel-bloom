@@ -14,12 +14,13 @@ const int NATIVE_HEIGHT = 90;
 
 const float PHYSICS_TIME            = 0.02;
 const int FONT_SIZE                 = 20;
+const int LINE_DURATION = 10;
 // const int PLAYER_MAX_SHOOTS			= 100;
 
 // Flower consts
 const int FLOWER_FRAMES = 7;
 const float FLOWER_FRAME_SPEED  = .3;
-const float FLOWER_WATER_DRAIN_SPEED = .2;
+const float FLOWER_WATER_DRAIN_SPEED = 10;
 const float FLOWER_MAX_WATER_LEVEL = 200;
 
 // Sun consts
@@ -34,7 +35,6 @@ const float CLOUD_AMOUNT = 5.0;
 
 typedef struct Flower {
     float frameTimer;
-    float waterDrainSpeed;
     float waterLevel;
     float health;
     int currentFrame;
@@ -87,9 +87,9 @@ typedef struct Game {
     int halfWidth;
     int halfHeight;
     float virtualRatio;
-    float currentScore;
-    float highestScore;
     float lineDuration;
+    float score;
+    float highestScore;
     int windArrayAmount;
     int waterArrayAmount;
     float windParticleCD;
@@ -160,6 +160,7 @@ void ResetGame() {
     game.windParticleCD = 1;
     game.waterParticleCD = 1;
     game.isSunUp = true;
+    game.score = 0;
 }
 void LoadTextures() {
     game.flower.texture = LoadTexture("resources/flower.png");
@@ -189,6 +190,10 @@ void TakeDamage(float damage) {
     if (game.flower.health <= 0) {
         game.flower.isAlive = false;
         game.flower.health = 0;
+        if(game.score > game.highestScore) {
+            game.highestScore = game.score;
+        }
+        game.state = StateGameOver;
     }
 }
 void TakeWater(float water) {
@@ -199,8 +204,12 @@ void TakeWater(float water) {
         game.flower.waterLevel = FLOWER_MAX_WATER_LEVEL;
     } else {
         game.flower.health += 1;
+        if(game.flower.health > 100) {
+            game.flower.health = 100;
+        }
     }
 }
+
 void UpdateFrame() {
     if(IsWindowResized()){
         PlaceUIButtons();
@@ -232,7 +241,7 @@ void UpdateFrame() {
                 game.isDraging = true;
                 game.startLine = Vector2Scale(GetMousePosition(), 1 / game.virtualRatio);
                 game.endLine = (Vector2){0};
-                game.lineDuration = 40;
+                game.lineDuration = LINE_DURATION;
             }
             if (points == 0) {
                 game.endLine = Vector2Scale(GetMousePosition(), 1 / game.virtualRatio);
@@ -242,7 +251,7 @@ void UpdateFrame() {
             if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
                 game.startLine = GetMousePosition();
                 game.endLine = (Vector2){0};
-                game.lineDuration = 40;
+                game.lineDuration = LINE_DURATION;
             }
             if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
                 game.endLine = GetMousePosition();
@@ -250,6 +259,11 @@ void UpdateFrame() {
         }
 
         const float delta = GetFrameTime();
+
+        // Calc Score
+        if(game.flower.isAlive && game.isSunUp) {
+            game.score += game.flower.health/100 * delta;
+        }
 
         if (game.lineDuration > 0) {
             if (game.endLine.x == 0 && game.endLine.y == 0) {
@@ -284,12 +298,15 @@ void UpdateFrame() {
                 game.flower.currentFrame += 1;
                 if (game.flower.currentFrame >= FLOWER_FRAMES) game.flower.currentFrame = 0;
             }
-        }
-        if (game.flower.waterLevel != 0.0) {
-            game.flower.waterLevel = game.flower.waterLevel - (game.flower.waterDrainSpeed * delta);
-        }
-        if (game.flower.waterLevel < 0.0) {
-            game.flower.waterLevel = 0.0;
+            if (game.flower.waterLevel != 0.0) {
+                if(game.isSunUp){
+                    game.flower.waterLevel = game.flower.waterLevel - (FLOWER_WATER_DRAIN_SPEED * delta);
+                }
+            }
+            if (game.flower.waterLevel < 0.0) {
+                game.flower.waterLevel = 0.0;
+                TakeDamage(10 * delta);
+            }
         }
         BeginTextureMode(target);
             ClearBackground(DARKGRAY);
@@ -324,8 +341,8 @@ void UpdateFrame() {
             } else {
                 for (int i = 0; i < game.waterArrayAmount; i++) {
                     WaterParticles *value = &game.waterArray[i];
-                    value->position.y += value->amount * delta;
-                    if (value->position.x > NATIVE_WIDTH - 85) {
+                    value->position.y += value->amount * 10 * delta;
+                    if (value->position.y > NATIVE_WIDTH - 85) {
                         TakeWater(value->amount);
                         game.waterArray[i] = game.waterArray[game.waterArrayAmount - 1];
                         game.waterArrayAmount -= 1;
@@ -372,10 +389,8 @@ void UpdateFrame() {
                 } else if (waterLevelPercentage >= 10) {
                     waterLevelColor = WHITE;
                 }
-                DrawText(TextFormat("S2: %03.0f", game.flower.health), game.width - 100, 10, FONT_SIZE, waterLevelColor);
-                DrawText(TextFormat("(o): %03.0f%%", waterLevelPercentage), game.width - 100, 30, FONT_SIZE, waterLevelColor);
                 
-                if (MenuButtom((Rectangle){game.width - 100, 50, 90, 20}, "Music"))
+                if (MenuButtom((Rectangle){game.width - 100, 10, 90, 20}, "Music"))
                 {
                     if(game.isPaused){
                         ResumeMusicStream(music);
@@ -385,6 +400,10 @@ void UpdateFrame() {
                         game.isPaused = true;
                     }
                 }
+
+                DrawText(TextFormat("$: %03.0f", game.score), game.width - 100, 30, FONT_SIZE, waterLevelColor);
+                DrawText(TextFormat("S2: %03.0f", game.flower.health), game.width - 100, 50, FONT_SIZE, waterLevelColor);
+                DrawText(TextFormat("(o): %03.0f%%", waterLevelPercentage), game.width - 100, 80, FONT_SIZE, waterLevelColor);
 
                 break;
             case StateStartMenu:
@@ -400,6 +419,7 @@ void UpdateFrame() {
                 
                 break;
             case StateGameOver:
+                DrawText(TextFormat("Highest Score: %03.0f", game.highestScore), restartMenuRec.x, restartMenuRec.y - 20, FONT_SIZE, waterLevelColor);
                 if (MenuButtom(restartMenuRec, "Restart Game"))
                 {
                     // Initialize game
@@ -440,6 +460,7 @@ int main(void) {
     destRec = (Rectangle){ -game.virtualRatio, -game.virtualRatio, game.width + (game.virtualRatio*2), game.height + (game.virtualRatio*2) };
 
     game.state = StateStartMenu;
+    game.highestScore = 0;
 
 #if defined(PLATFORM_WEB)
     emscripten_set_main_loop(UpdateFrame, 0, 1);

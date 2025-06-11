@@ -6,15 +6,15 @@ all: configure build test
 
 # Check if the build directory exists, if not create it
 configure-windows:
-	@cmake build . -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DPLATFORM=Desktop -DWIN32=true -DCMAKE_CROSSCOMPILING=true -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc
+	@/usr/bin/cmake build . -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DPLATFORM=Desktop -DWIN32=true -DCMAKE_CROSSCOMPILING=true -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc
 
 configure:
 	@mkdir -p $(BUILD_DIR)
-	@cmake build . -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
+	@/usr/bin/cmake build . -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
 
 configure-web:
 	@mkdir -p $(BUILD_DIR)
-	cd $(BUILD_DIR) && ../emsdk/upstream/emscripten/emcmake cmake .. -DPLATFORM=Web -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXECUTABLE_SUFFIX=".html"
+	cd $(BUILD_DIR) && ../../emsdk/upstream/emscripten/emcmake cmake .. -DPLATFORM=Web -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXECUTABLE_SUFFIX=".html"
 
 # Build the project
 build:
