@@ -15,6 +15,8 @@ const int NATIVE_HEIGHT = 90;
 const float PHYSICS_TIME            = 0.02;
 const int FONT_SIZE                 = 20;
 const int LINE_DURATION = 10;
+const int DEHIDRATION_DAMAGE = 10;
+const int TOO_MUCH_WATER_DAMAGE = 10;
 // const int PLAYER_MAX_SHOOTS			= 100;
 
 // Flower consts
@@ -27,11 +29,13 @@ const float FLOWER_MAX_WATER_LEVEL = 200;
 const int SUN_FRAMES = 8;
 const float SUN_FRAME_SPEED  = .3;
 const float SUN_AMOUNT = 10.0;
+const float WIND_PARTICLES_CD = 1;
 
 // Cloud consts
 const int CLOUD_FRAMES = 8;
 const float CLOUD_FRAME_SPEED  = .3;
 const float CLOUD_AMOUNT = 5.0;
+const float WATER_PARTICLES_CD = .3;
 
 typedef struct Flower {
     float frameTimer;
@@ -72,6 +76,13 @@ typedef enum GameStateType {
     StateGameOver = 3,
 } GameStateType;
 
+typedef enum DamageType {
+    NoneDamage = 0,
+    DehidrationDamage = 1,
+    WindDamage = 2,
+    DrawningDamage = 3,
+} DamageType;
+
 typedef struct Game {
     WindParticles windArray[MAX_WIND_PARTICLES];
     WaterParticles waterArray[MAX_WATER_PARTICLES];
@@ -82,6 +93,7 @@ typedef struct Game {
     Vector2 endLine;
     Vector2 currentLine[2];
 	GameStateType state;
+    DamageType gameOverType;
     int width;
     int height;
     int halfWidth;
@@ -95,7 +107,7 @@ typedef struct Game {
     float windParticleCD;
     float waterParticleCD;
     bool isSunUp;
-    bool isDraging;
+    bool skipInput;
     bool isPaused;
 } Game;
 
@@ -127,8 +139,13 @@ int MenuButtom(Rectangle buttom, const char *buttom_text) {
 }
 
 void PlaceUIButtons(){
-    game.width = GetScreenWidth();
-    game.height = GetScreenHeight();
+    if(IsWindowFullscreen()) {
+        game.width = GetMonitorWidth(GetCurrentMonitor());
+        game.height = GetMonitorHeight(GetCurrentMonitor());
+    }else{
+        game.width = GetScreenWidth();
+        game.height = GetScreenHeight();
+    }
 	game.halfWidth = game.width / 2.0;
 	game.halfHeight = game.height / 2.0;
     // Add start button
@@ -157,10 +174,12 @@ void ResetGame() {
     game.sun.currentFrame = 0;
     game.windArrayAmount = 0;
     game.waterArrayAmount = 0;
-    game.windParticleCD = 1;
-    game.waterParticleCD = 1;
+    game.windParticleCD = WIND_PARTICLES_CD;
+    game.waterParticleCD = WATER_PARTICLES_CD;
     game.isSunUp = true;
     game.score = 0;
+    game.gameOverType = NoneDamage;
+    game.skipInput = false;
 }
 void LoadTextures() {
     game.flower.texture = LoadTexture("resources/flower.png");
@@ -184,7 +203,7 @@ void UnloadTextures() {
 void UpdateRatio() {
     game.virtualRatio = game.height/NATIVE_HEIGHT;
 }
-void TakeDamage(float damage) {
+void TakeDamage(float damage, DamageType damageType) {
     if (!game.flower.isAlive) return;
     game.flower.health =  game.flower.health - damage;
     if (game.flower.health <= 0) {
@@ -194,13 +213,14 @@ void TakeDamage(float damage) {
             game.highestScore = game.score;
         }
         game.state = StateGameOver;
+        game.gameOverType = DehidrationDamage;
     }
 }
 void TakeWater(float water) {
     if (!game.flower.isAlive) return;
     game.flower.waterLevel += water;
     if (game.flower.waterLevel > FLOWER_MAX_WATER_LEVEL) {
-        TakeDamage(10);
+        TakeDamage(TOO_MUCH_WATER_DAMAGE, DrawningDamage);
         game.flower.waterLevel = FLOWER_MAX_WATER_LEVEL;
     } else {
         game.flower.health += 1;
@@ -217,37 +237,35 @@ void UpdateFrame() {
     // Tick
     UpdateMusicStream(music);   // Update music buffer with new stream data
     if(game.state == StateInGame){
-        if (IsKeyPressed(KEY_SPACE)) {
+        if (IsWindowResized()) {
+            if(IsWindowFullscreen()) {
+                game.width = GetMonitorWidth(GetCurrentMonitor());
+                game.height = GetMonitorHeight(GetCurrentMonitor());
+            }else{
+                game.width = GetScreenWidth();
+                game.height = GetScreenHeight();
+            }
+            UpdateRatio();
+        }
+        SetMouseScale(1 / game.virtualRatio, 1 / game.virtualRatio);
+        const Rectangle flowerButtom = (Rectangle){60, NATIVE_HEIGHT - 50, game.flower.texture.width / FLOWER_FRAMES, 50};
+        if (IsKeyPressed(KEY_SPACE) ||
+            (IsMouseButtonReleased(MOUSE_LEFT_BUTTON) && 
+            CheckCollisionPointRec(GetMousePosition(), flowerButtom))) {
             game.isSunUp = !game.isSunUp;
-            game.flower.currentFrame = 0;
             game.cloud.currentFrame = 0;
             game.sun.currentFrame = 0;
             game.windArrayAmount = 0;
             game.waterArrayAmount = 0;
-            game.windParticleCD = 1;
-            game.waterParticleCD = 1;
+            game.windParticleCD = WIND_PARTICLES_CD;
+            game.waterParticleCD = WATER_PARTICLES_CD;
+            game.skipInput = true;
         }
-
-        if (IsWindowResized()) {
-            game.width = GetScreenWidth();
-            game.height = GetScreenHeight();
-            UpdateRatio();
-        }
-        
-        SetMouseScale(1 / game.virtualRatio, 1 / game.virtualRatio);
-        const int points = GetTouchPointCount();
-        if (points > 1 || game.isDraging) {
-            if (!game.isDraging) {
-                game.isDraging = true;
-                game.startLine = Vector2Scale(GetMousePosition(), 1 / game.virtualRatio);
-                game.endLine = (Vector2){0};
-                game.lineDuration = LINE_DURATION;
-            }
-            if (points == 0) {
-                game.endLine = Vector2Scale(GetMousePosition(), 1 / game.virtualRatio);
-                game.isDraging = false;
-            }
-        } else {
+        if(game.skipInput){
+            game.startLine = (Vector2){0};
+            game.endLine = (Vector2){0};
+            game.lineDuration = 0;
+        }else{
             if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
                 game.startLine = GetMousePosition();
                 game.endLine = (Vector2){0};
@@ -257,6 +275,7 @@ void UpdateFrame() {
                 game.endLine = GetMousePosition();
             }
         }
+        game.skipInput = false;
 
         const float delta = GetFrameTime();
 
@@ -302,10 +321,12 @@ void UpdateFrame() {
                 if(game.isSunUp){
                     game.flower.waterLevel = game.flower.waterLevel - (FLOWER_WATER_DRAIN_SPEED * delta);
                 }
+            }else{
+                TakeDamage(DEHIDRATION_DAMAGE * delta, DehidrationDamage);
             }
             if (game.flower.waterLevel < 0.0) {
                 game.flower.waterLevel = 0.0;
-                TakeDamage(10 * delta);
+                TakeDamage(DEHIDRATION_DAMAGE * delta, DehidrationDamage);
             }
         }
         BeginTextureMode(target);
@@ -316,7 +337,7 @@ void UpdateFrame() {
                     WindParticles *value = &game.windArray[i];
                     value->position.x += value->power * delta;
                     if (value->position.x > NATIVE_WIDTH - 85) {
-                        TakeDamage(value->power);
+                        TakeDamage(value->power, WindDamage);
                         game.windArray[i] = game.windArray[game.windArrayAmount - 1];
                         game.windArrayAmount -= 1;
                     } else if (game.lineDuration > 0 && CheckCollisionPointLine(value->position, game.currentLine[0], game.currentLine[1], 1)) {
@@ -328,7 +349,7 @@ void UpdateFrame() {
                     }
                 }
                 if (game.windParticleCD < 0) {
-                    game.windParticleCD = 1;
+                    game.windParticleCD = WIND_PARTICLES_CD;
                     if (game.windArrayAmount < MAX_WIND_PARTICLES) {
                         game.windArray[game.windArrayAmount].power = 10 + GetRandomValue(1,10);
                         game.windArray[game.windArrayAmount].position.y = NATIVE_HEIGHT - 30 + GetRandomValue(1,20);
@@ -356,7 +377,7 @@ void UpdateFrame() {
                 }
                 game.waterParticleCD -= delta;
                 if (game.waterParticleCD < 0) {
-                    game.waterParticleCD = 1;
+                    game.waterParticleCD = WATER_PARTICLES_CD;
                     if (game.waterArrayAmount < MAX_WATER_PARTICLES) {
                         game.waterArrayAmount += 1;
                     }
@@ -383,12 +404,6 @@ void UpdateFrame() {
             case StateInGame:
                 DrawTexturePro(target.texture, sourceRec, destRec, (Vector2){0}, 0.0f, WHITE);
                 float waterLevelPercentage = game.flower.waterLevel/FLOWER_MAX_WATER_LEVEL * 100;
-                Color waterLevelColor = WHITE;
-                if (waterLevelPercentage >= 50) {
-                    waterLevelColor = GRAY;
-                } else if (waterLevelPercentage >= 10) {
-                    waterLevelColor = WHITE;
-                }
                 
                 if (MenuButtom((Rectangle){game.width - 100, 10, 90, 20}, "Music"))
                 {
@@ -401,9 +416,9 @@ void UpdateFrame() {
                     }
                 }
 
-                DrawText(TextFormat("$: %03.0f", game.score), game.width - 100, 30, FONT_SIZE, waterLevelColor);
-                DrawText(TextFormat("S2: %03.0f", game.flower.health), game.width - 100, 50, FONT_SIZE, waterLevelColor);
-                DrawText(TextFormat("(o): %03.0f%%", waterLevelPercentage), game.width - 100, 80, FONT_SIZE, waterLevelColor);
+                DrawText(TextFormat("$: %03.0f", game.score), game.width - 100, 30, FONT_SIZE, WHITE);
+                DrawText(TextFormat("S2: %03.0f", game.flower.health), game.width - 100, 50, FONT_SIZE, WHITE);
+                DrawText(TextFormat("(o): %03.0f%%", waterLevelPercentage), game.width - 100, 80, FONT_SIZE, WHITE);
 
                 break;
             case StateStartMenu:
@@ -419,6 +434,20 @@ void UpdateFrame() {
                 
                 break;
             case StateGameOver:
+                switch (game.gameOverType)
+                {
+                    case DehidrationDamage:
+                        DrawText("Your flower died by dehidration.", restartMenuRec.x, restartMenuRec.y - 42, FONT_SIZE, WHITE);
+                        break;
+                    case DrawningDamage:
+                        DrawText("Your flower died by drawning.", restartMenuRec.x, restartMenuRec.y - 42, FONT_SIZE, WHITE);
+                        break;
+                    case WindDamage:
+                        DrawText("Your flower died by too much wind.", restartMenuRec.x, restartMenuRec.y - 42, FONT_SIZE, WHITE);
+                        break;
+                    default:
+                        break;
+                }
                 DrawText(TextFormat("Highest Score: %03.0f", game.highestScore), restartMenuRec.x, restartMenuRec.y - 20, FONT_SIZE, WHITE);
                 if (MenuButtom(restartMenuRec, "Restart Game"))
                 {
@@ -465,6 +494,12 @@ int main(void) {
 #if defined(PLATFORM_WEB)
     emscripten_set_main_loop(UpdateFrame, 0, 1);
 #else
+    ToggleFullscreen();
+    
+    game.width = GetMonitorWidth(GetCurrentMonitor());
+    game.height = GetMonitorHeight(GetCurrentMonitor());
+    UpdateRatio();
+
     SetTargetFPS(60);
     // Main game loop
     while (!WindowShouldClose()) {
