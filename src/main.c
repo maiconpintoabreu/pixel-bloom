@@ -98,8 +98,6 @@ typedef struct Game {
     DamageType gameOverType;
     int width;
     int height;
-    int halfWidth;
-    int halfHeight;
     float virtualRatio;
     float score;
     float highestScore;
@@ -109,7 +107,7 @@ typedef struct Game {
     float waterParticleCD;
     bool isSunUp;
     bool skipInput;
-    bool isPaused;
+    bool isMusicPaused;
     bool isShielding;
 } Game;
 
@@ -132,10 +130,13 @@ static Rectangle destRec = {0};
 
 static Music music = {0};
 
+static bool isPlaying = true;
+
  
 int MenuButtom(Rectangle buttom, const char *buttom_text) {
     if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(GetMousePosition(), buttom))
     {
+        game.skipInput = true;
         return true;
     }
     DrawRectangleRec(buttom, GRAY);
@@ -145,15 +146,6 @@ int MenuButtom(Rectangle buttom, const char *buttom_text) {
 }
 
 void PlaceUIButtons(){
-    if(IsWindowFullscreen()) {
-        game.width = GetMonitorWidth(GetCurrentMonitor());
-        game.height = GetMonitorHeight(GetCurrentMonitor());
-    }else{
-        game.width = GetScreenWidth();
-        game.height = GetScreenHeight();
-    }
-	game.halfWidth = game.width / 2.0;
-	game.halfHeight = game.height / 2.0;
     // Add start button
     startMenuRec.x = (game.width / 2) - menu_size_width / 2;
     startMenuRec.y = (game.height / 2) - item_menu_size_height / 1.5f;
@@ -218,7 +210,14 @@ void UnloadTextures() {
         UnloadTexture(game.waterTexture);
     }
 }
-void UpdateRatio() {
+void UpdateScreenValues() {
+    if(IsWindowFullscreen()) {
+        game.width = GetMonitorWidth(GetCurrentMonitor());
+        game.height = GetMonitorHeight(GetCurrentMonitor());
+    }else{
+        game.width = GetScreenWidth();
+        game.height = GetScreenHeight();
+    }
     game.virtualRatio = game.height/NATIVE_HEIGHT;
 }
 void TakeDamage(float damage, DamageType damageType) {
@@ -258,6 +257,13 @@ void TakeWater(float water) {
 }
 
 void UpdateFrame() {
+    if(!isPlaying) {
+        BeginDrawing();
+            ClearBackground(BLACK);
+            DrawText("The game is Closed", game.width/2-20, game.height/2-10, 20, WHITE);
+        EndDrawing();
+        return;
+    }
     if(IsWindowResized()){
         PlaceUIButtons();
     }
@@ -272,7 +278,7 @@ void UpdateFrame() {
                 game.width = GetScreenWidth();
                 game.height = GetScreenHeight();
             }
-            UpdateRatio();
+            UpdateScreenValues();
         }
         SetMouseScale(1 / game.virtualRatio, 1 / game.virtualRatio);
         const Rectangle flowerButtom = (Rectangle){60, NATIVE_HEIGHT - 50, game.flower.texture.width / FLOWER_FRAMES, 50};
@@ -430,14 +436,14 @@ void UpdateFrame() {
             case StateInGame:
                 DrawTexturePro(target.texture, sourceRec, destRec, (Vector2){0}, 0.0f, WHITE);
                 
-                if (MenuButtom((Rectangle){game.width - 100, 10, 90, 20}, "Music"))
+                if (MenuButtom((Rectangle){game.width - 150, 10, 140, 40}, "Music"))
                 {
-                    if(game.isPaused){
+                    if(game.isMusicPaused){
                         ResumeMusicStream(music);
-                        game.isPaused = false;
+                        game.isMusicPaused = false;
                     }else{
                         PauseMusicStream(music);
-                        game.isPaused = true;
+                        game.isMusicPaused = true;
                     }
                 }
 
@@ -450,7 +456,8 @@ void UpdateFrame() {
                 }
                 if (MenuButtom(exitMenuRec, "Exit Game")){
                     // Exit game
-                    CloseWindow();
+                    isPlaying = false;
+                    return;
                 }
                 
                 break;
@@ -479,11 +486,12 @@ void UpdateFrame() {
                 if (MenuButtom(exitMenuRec, "Exit Game"))
                 {
                     // Exit game
-                    CloseWindow();
+                    isPlaying = false;
+                    return;
                 }
                 break;
         }
-        DrawText(TextFormat("FPS: %d", GetFPS()), 10, 12, FONT_SIZE, RED);
+        // DrawText(TextFormat("FPS: %d", GetFPS()), 10, 12, FONT_SIZE, RED);
     EndDrawing();
 
 }
@@ -503,8 +511,8 @@ int main(void) {
     music = LoadMusicStream("resources/musics/ambient.mp3");
     PlayMusicStream(music);
 
+    UpdateScreenValues();
     PlaceUIButtons();
-    UpdateRatio();
     ResetGame();
     sourceRec = (Rectangle){ 0.0f, 0.0f, target.texture.width, - target.texture.height };
     destRec = (Rectangle){ -game.virtualRatio, -game.virtualRatio, game.width + (game.virtualRatio*2), game.height + (game.virtualRatio*2) };
@@ -519,11 +527,11 @@ int main(void) {
     
     game.width = GetMonitorWidth(GetCurrentMonitor());
     game.height = GetMonitorHeight(GetCurrentMonitor());
-    UpdateRatio();
+    UpdateScreenValues();
 
     SetTargetFPS(60);
     // Main game loop
-    while (!WindowShouldClose()) {
+    while (!WindowShouldClose() && isPlaying) {
         UpdateFrame();
     }
 #endif
