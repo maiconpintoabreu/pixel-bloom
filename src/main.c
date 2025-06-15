@@ -188,7 +188,7 @@ void ResetGame() {
     game.gameOverType = NoneDamage;
     game.skipInput = false;
     
-    healthRec = (Rectangle){NATIVE_WIDTH-30, NATIVE_HEIGHT-DEFAULT_BAR_HEIGHT, 4, DEFAULT_BAR_HEIGHT};
+    healthRec = (Rectangle){NATIVE_WIDTH-20, NATIVE_HEIGHT-DEFAULT_BAR_HEIGHT, 4, DEFAULT_BAR_HEIGHT};
     hidrationRec = (Rectangle){NATIVE_WIDTH-10, NATIVE_HEIGHT-DEFAULT_BAR_HEIGHT, 4, DEFAULT_BAR_HEIGHT};
 }
 void LoadTextures() {
@@ -233,13 +233,16 @@ void TakeDamage(float damage, DamageType damageType) {
         game.state = StateGameOver;
         game.gameOverType = damageType;
     }
-    const float healthHeight = 40*game.flower.health/100;
+    const float healthHeight = DEFAULT_BAR_HEIGHT*game.flower.health/100;
     healthRec.y = NATIVE_HEIGHT-healthHeight;
     healthRec.height = healthHeight;
 }
 void TakeWater(float water) {
     if (!game.flower.isAlive) return;
     game.flower.waterLevel += water;
+    const float hidrationHeight = DEFAULT_BAR_HEIGHT*game.flower.waterLevel/FLOWER_MAX_WATER_LEVEL;
+    hidrationRec.y = NATIVE_HEIGHT-hidrationHeight;
+    hidrationRec.height = hidrationHeight;
     if (game.flower.waterLevel > FLOWER_MAX_WATER_LEVEL) {
         TakeDamage(TOO_MUCH_WATER_DAMAGE, DrawningDamage);
         game.flower.waterLevel = FLOWER_MAX_WATER_LEVEL;
@@ -248,6 +251,9 @@ void TakeWater(float water) {
         if(game.flower.health > 100) {
             game.flower.health = 100;
         }
+        const float healthHeight = DEFAULT_BAR_HEIGHT*game.flower.health/100;
+        healthRec.y = NATIVE_HEIGHT-healthHeight;
+        healthRec.height = healthHeight;
     }
 }
 
@@ -332,6 +338,9 @@ void UpdateFrame() {
             if (game.flower.waterLevel != 0.0) {
                 if(game.isSunUp){
                     game.flower.waterLevel = game.flower.waterLevel - (FLOWER_WATER_DRAIN_SPEED * delta);
+                    const float hidrationHeight = DEFAULT_BAR_HEIGHT*game.flower.waterLevel/FLOWER_MAX_WATER_LEVEL;
+                    hidrationRec.y = NATIVE_HEIGHT-hidrationHeight;
+                    hidrationRec.height = hidrationHeight;
                 }
             }else{
                 TakeDamage(DEHIDRATION_DAMAGE * delta, DehidrationDamage);
@@ -406,6 +415,7 @@ void UpdateFrame() {
             DrawRectangleRec(hidrationRec, WHITE);
             DrawTextureV(game.healthTexture,(Vector2){healthRec.x-2, NATIVE_HEIGHT - DEFAULT_BAR_HEIGHT - 10},WHITE);
             DrawTextureV(game.waterTexture,(Vector2){hidrationRec.x-2, NATIVE_HEIGHT - DEFAULT_BAR_HEIGHT - 10},WHITE);
+            DrawText(TextFormat("$: %03.0f", game.score), NATIVE_WIDTH - 30, DEFAULT_BAR_HEIGHT-30, 1, WHITE);
 
             if (game.isShielding) {
                 DrawCircleV(game.shieldPosition, SHIELD_RADIUS, LIGHTGRAY);
@@ -430,8 +440,6 @@ void UpdateFrame() {
                         game.isPaused = true;
                     }
                 }
-
-                DrawText(TextFormat("$: %03.0f", game.score), game.width - 100, 30, FONT_SIZE, WHITE);
 
                 break;
             case StateStartMenu:
