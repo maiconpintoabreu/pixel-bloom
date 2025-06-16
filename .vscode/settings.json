@@ -10,6 +10,7 @@
         "type_traits": "c",
         "utility": "c",
         "string_view": "c",
-        "initializer_list": "c"
+        "initializer_list": "c",
+        "ratio": "c"
     }
 }

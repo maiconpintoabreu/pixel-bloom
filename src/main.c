@@ -108,6 +108,7 @@ typedef struct Game {
     bool isSunUp;
     bool skipInput;
     bool isMusicPaused;
+    bool isPaused;
     bool isShielding;
 } Game;
 
@@ -179,6 +180,7 @@ void ResetGame() {
     game.score = 0;
     game.gameOverType = NoneDamage;
     game.skipInput = false;
+    game.isPaused = false;
     
     healthRec = (Rectangle){NATIVE_WIDTH-20, NATIVE_HEIGHT-DEFAULT_BAR_HEIGHT, 4, DEFAULT_BAR_HEIGHT};
     hidrationRec = (Rectangle){NATIVE_WIDTH-10, NATIVE_HEIGHT-DEFAULT_BAR_HEIGHT, 4, DEFAULT_BAR_HEIGHT};
@@ -270,109 +272,104 @@ void UpdateFrame() {
     // Tick
     UpdateMusicStream(music);   // Update music buffer with new stream data
     if(game.state == StateInGame){
-        if (IsWindowResized()) {
-            if(IsWindowFullscreen()) {
-                game.width = GetMonitorWidth(GetCurrentMonitor());
-                game.height = GetMonitorHeight(GetCurrentMonitor());
-            }else{
-                game.width = GetScreenWidth();
-                game.height = GetScreenHeight();
+        const float delta = GetFrameTime();
+        if(!game.isPaused) {
+            if (IsWindowResized()) {
+                if(IsWindowFullscreen()) {
+                    game.width = GetMonitorWidth(GetCurrentMonitor());
+                    game.height = GetMonitorHeight(GetCurrentMonitor());
+                }else{
+                    game.width = GetScreenWidth();
+                    game.height = GetScreenHeight();
+                }
+                UpdateScreenValues();
             }
-            UpdateScreenValues();
-        }
-        SetMouseScale(1 / game.virtualRatio, 1 / game.virtualRatio);
-        const Rectangle flowerButtom = (Rectangle){60, NATIVE_HEIGHT - 50, game.flower.texture.width / FLOWER_FRAMES, 50};
-        const Vector2 mousePosition = GetMousePosition();
-        if (IsKeyPressed(KEY_SPACE) ||
-            (IsMouseButtonReleased(MOUSE_LEFT_BUTTON) && 
-            CheckCollisionPointRec(mousePosition, flowerButtom))) {
-            game.isSunUp = !game.isSunUp;
-            game.cloud.currentFrame = 0;
-            game.sun.currentFrame = 0;
-            game.windArrayAmount = 0;
-            game.waterArrayAmount = 0;
-            game.windParticleCD = WIND_PARTICLES_CD;
-            game.waterParticleCD = WATER_PARTICLES_CD;
-            game.skipInput = true;
-        }
-        if(game.skipInput){
-            game.shieldPosition = (Vector2){0};
-            game.isShielding = false;
-        }else{
-            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-                game.isShielding = true;
+            SetMouseScale(1 / game.virtualRatio, 1 / game.virtualRatio);
+            const Rectangle flowerButtom = (Rectangle){60, NATIVE_HEIGHT - 50, game.flower.texture.width / FLOWER_FRAMES, 50};
+            const Vector2 mousePosition = GetMousePosition();
+            if (IsKeyPressed(KEY_SPACE) ||
+                (IsMouseButtonReleased(MOUSE_LEFT_BUTTON) && 
+                CheckCollisionPointRec(mousePosition, flowerButtom))) {
+                game.isSunUp = !game.isSunUp;
+                game.cloud.currentFrame = 0;
+                game.sun.currentFrame = 0;
+                game.windArrayAmount = 0;
+                game.waterArrayAmount = 0;
+                game.windParticleCD = WIND_PARTICLES_CD;
+                game.waterParticleCD = WATER_PARTICLES_CD;
+                game.skipInput = true;
             }
-            if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
+            if(game.skipInput){
                 game.shieldPosition = (Vector2){0};
                 game.isShielding = false;
-            }
-        }
-        if(game.isShielding) {
-            game.shieldPosition = mousePosition;
-        }
-        game.skipInput = false;
-
-        const float delta = GetFrameTime();
-
-        // Calc Score
-        if(game.flower.isAlive && game.isSunUp) {
-            game.score += game.flower.health/100 * delta;
-        }
-        SetMouseScale(1, 1);
-        if (game.isSunUp) {
-            game.sun.frameTimer += delta;
-            if (game.sun.frameTimer >= SUN_FRAME_SPEED) {
-                game.sun.frameTimer = 0;
-                game.sun.currentFrame = GetRandomValue(0, SUN_FRAMES - 1);
-                if (game.sun.currentFrame >= SUN_FRAMES) game.sun.currentFrame = 0;
-            }
-        } else {
-            game.cloud.frameTimer += delta;
-            if (game.cloud.frameTimer >= CLOUD_FRAME_SPEED) {
-                game.cloud.frameTimer = 0;
-                game.cloud.currentFrame += 1;
-                if (game.cloud.currentFrame >= CLOUD_FRAMES) game.cloud.currentFrame = 0;
-            }
-        }
-        if(game.flower.isAlive) {
-            game.flower.frameTimer += delta;
-            if (game.flower.frameTimer >= FLOWER_FRAME_SPEED) {
-                game.flower.frameTimer = 0;
-                game.flower.currentFrame += 1;
-                if (game.flower.currentFrame >= FLOWER_FRAMES) game.flower.currentFrame = 0;
-            }
-            if (game.flower.waterLevel != 0.0) {
-                if(game.isSunUp){
-                    game.flower.waterLevel = game.flower.waterLevel - (FLOWER_WATER_DRAIN_SPEED * delta);
-                    const float hidrationHeight = DEFAULT_BAR_HEIGHT*game.flower.waterLevel/FLOWER_MAX_WATER_LEVEL;
-                    hidrationRec.y = NATIVE_HEIGHT-hidrationHeight;
-                    hidrationRec.height = hidrationHeight;
-                }
             }else{
-                TakeDamage(DEHIDRATION_DAMAGE * delta, DehidrationDamage);
+                if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                    game.isShielding = true;
+                }
+                if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
+                    game.shieldPosition = (Vector2){0};
+                    game.isShielding = false;
+                }
             }
-            if (game.flower.waterLevel < 0.0) {
-                game.flower.waterLevel = 0.0;
-                TakeDamage(DEHIDRATION_DAMAGE * delta, DehidrationDamage);
+            if(game.isShielding) {
+                game.shieldPosition = mousePosition;
             }
-        }
-        BeginTextureMode(target);
-            ClearBackground(DARKGRAY);
+            game.skipInput = false;
+
+            // Calc Score
+            if(game.flower.isAlive && game.isSunUp) {
+                game.score += game.flower.health/100 * delta;
+            }
+            SetMouseScale(1, 1);
+            if (game.isSunUp) {
+                game.sun.frameTimer += delta;
+                if (game.sun.frameTimer >= SUN_FRAME_SPEED) {
+                    game.sun.frameTimer = 0;
+                    game.sun.currentFrame = GetRandomValue(0, SUN_FRAMES - 1);
+                    if (game.sun.currentFrame >= SUN_FRAMES) game.sun.currentFrame = 0;
+                }
+            } else {
+                game.cloud.frameTimer += delta;
+                if (game.cloud.frameTimer >= CLOUD_FRAME_SPEED) {
+                    game.cloud.frameTimer = 0;
+                    game.cloud.currentFrame += 1;
+                    if (game.cloud.currentFrame >= CLOUD_FRAMES) game.cloud.currentFrame = 0;
+                }
+            }
+            if(game.flower.isAlive) {
+                game.flower.frameTimer += delta;
+                if (game.flower.frameTimer >= FLOWER_FRAME_SPEED) {
+                    game.flower.frameTimer = 0;
+                    game.flower.currentFrame += 1;
+                    if (game.flower.currentFrame >= FLOWER_FRAMES) game.flower.currentFrame = 0;
+                }
+                if (game.flower.waterLevel != 0.0) {
+                    if(game.isSunUp){
+                        game.flower.waterLevel = game.flower.waterLevel - (FLOWER_WATER_DRAIN_SPEED * delta);
+                        const float hidrationHeight = DEFAULT_BAR_HEIGHT*game.flower.waterLevel/FLOWER_MAX_WATER_LEVEL;
+                        hidrationRec.y = NATIVE_HEIGHT-hidrationHeight;
+                        hidrationRec.height = hidrationHeight;
+                    }
+                }else{
+                    TakeDamage(DEHIDRATION_DAMAGE * delta, DehidrationDamage);
+                }
+                if (game.flower.waterLevel < 0.0) {
+                    game.flower.waterLevel = 0.0;
+                    TakeDamage(DEHIDRATION_DAMAGE * delta, DehidrationDamage);
+                }
+            }
+            
             if (game.isSunUp) {
                 game.windParticleCD -= delta;
                 for (int i = 0; i < game.windArrayAmount; i++) {
-                    WindParticles *value = &game.windArray[i];
-                    value->position.x += value->power * delta;
-                    if (value->position.x > NATIVE_WIDTH - 85) {
-                        TakeDamage(value->power, WindDamage);
+                    game.windArray[i].position.x += game.windArray[i].power * delta;
+                    if (game.windArray[i].position.x > NATIVE_WIDTH - 85) {
+                        TakeDamage(game.windArray[i].power, WindDamage);
                         game.windArray[i] = game.windArray[game.windArrayAmount - 1];
                         game.windArrayAmount -= 1;
-                    } else if (game.isShielding && CheckCollisionPointCircle(value->position, game.shieldPosition, SHIELD_RADIUS)) {
+                    } else if (game.isShielding && CheckCollisionPointCircle(game.windArray[i].position, game.shieldPosition, SHIELD_RADIUS)) {
                         game.windArray[i] = game.windArray[game.windArrayAmount - 1];
                         game.windArrayAmount -= 1;
-                    } else {
-                        DrawPixelV(value->position, RAYWHITE);
-                        i += 1;
                     }
                 }
                 if (game.windParticleCD < 0) {
@@ -384,23 +381,43 @@ void UpdateFrame() {
                         game.windArrayAmount += 1;
                     }
                 }
+            } else {
+                for (int i = 0; i < game.waterArrayAmount; i++) {
+                    game.waterArray[i].position.y += game.waterArray[i].amount * 10 * delta;
+                    if (game.waterArray[i].position.y > NATIVE_WIDTH - 85) {
+                        TakeWater(game.waterArray[i].amount);
+                        game.waterArray[i] = game.waterArray[game.waterArrayAmount - 1];
+                        game.waterArrayAmount -= 1;
+                    } else if (game.isShielding && CheckCollisionPointCircle(game.waterArray[i].position, game.shieldPosition, SHIELD_RADIUS)) {
+                        game.waterArray[i] = game.waterArray[game.waterArrayAmount - 1];
+                        game.waterArrayAmount -= 1;
+                    }
+                }
+                game.waterParticleCD -= delta;
+                if (game.waterParticleCD < 0) {
+                    game.waterParticleCD = WATER_PARTICLES_CD;
+                    if (game.waterArrayAmount < MAX_WATER_PARTICLES) {
+                        game.waterArrayAmount += 1;
+                    }
+                    game.waterArray[game.waterArrayAmount - 1].amount = GetRandomValue(1, 10);
+                    game.waterArray[game.waterArrayAmount - 1].position.y = 0;
+                    game.waterArray[game.waterArrayAmount - 1].position.x = 60 + GetRandomValue(1, 20);
+                }
+            }
+        }
+        BeginTextureMode(target);
+            ClearBackground(DARKGRAY);
+            if (game.isSunUp) {
+                game.windParticleCD -= delta;
+                for (int i = 0; i < game.windArrayAmount; i++) {
+                    DrawPixelV(game.windArray[i].position, RAYWHITE);
+                }
                 const int sunDiv = game.sun.texture.width/SUN_FRAMES;
                 DrawTextureRec(game.sun.texture, (Rectangle){ game.sun.currentFrame * sunDiv, 0, sunDiv, game.sun.texture.height}, (Vector2){0, 0}, WHITE);
             } else {
                 for (int i = 0; i < game.waterArrayAmount; i++) {
-                    WaterParticles *value = &game.waterArray[i];
-                    value->position.y += value->amount * 10 * delta;
-                    if (value->position.y > NATIVE_WIDTH - 85) {
-                        TakeWater(value->amount);
-                        game.waterArray[i] = game.waterArray[game.waterArrayAmount - 1];
-                        game.waterArrayAmount -= 1;
-                    } else if (game.isShielding && CheckCollisionPointCircle(value->position, game.shieldPosition, SHIELD_RADIUS)) {
-                        game.waterArray[i] = game.waterArray[game.waterArrayAmount - 1];
-                        game.waterArrayAmount -= 1;
-                    } else {
-                        DrawPixelV(value->position, RAYWHITE);
-                        i += 1;
-                    }
+                    DrawPixelV(game.waterArray[i].position, RAYWHITE);
+                    i += 1;
                 }
                 game.waterParticleCD -= delta;
                 if (game.waterParticleCD < 0) {
@@ -436,7 +453,7 @@ void UpdateFrame() {
             case StateInGame:
                 DrawTexturePro(target.texture, sourceRec, destRec, (Vector2){0}, 0.0f, WHITE);
                 
-                if (MenuButtom((Rectangle){game.width - 150, 10, 140, 40}, "Music"))
+                if (MenuButtom((Rectangle){game.width - 210, 10, 100, 40}, "Music"))
                 {
                     if(game.isMusicPaused){
                         ResumeMusicStream(music);
@@ -444,6 +461,30 @@ void UpdateFrame() {
                     }else{
                         PauseMusicStream(music);
                         game.isMusicPaused = true;
+                    }
+                }
+                if (MenuButtom((Rectangle){game.width - 105, 10, 100, 40}, "Pause"))
+                {
+                    game.isPaused = !game.isPaused;
+                }
+                if(game.isPaused) {
+                    const Rectangle tempPauseRec = (Rectangle){restartMenuRec.x, restartMenuRec.y-restartMenuRec.height-15, restartMenuRec.width, restartMenuRec.height};
+                    if (MenuButtom(tempPauseRec, "Continue Game"))
+                    {
+                        // Initialize game
+                        game.isPaused = false;
+                    }
+                    if (MenuButtom(restartMenuRec, "Restart Game"))
+                    {
+                        // Initialize game
+                        ResetGame();
+                        game.state = StateInGame;
+                    }
+                    if (MenuButtom(exitMenuRec, "Exit Game"))
+                    {
+                        // Exit game
+                        isPlaying = false;
+                        return;
                     }
                 }
 
